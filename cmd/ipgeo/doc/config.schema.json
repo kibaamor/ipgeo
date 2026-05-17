@@ -1,0 +1,168 @@
+{
+    "$id": "https://raw.githubusercontent.com/kibaamor/ipgeo/main/cmd/ipgeo/doc/config.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "ipgeo Configuration",
+    "description": "Configuration file for ipgeo — the IP geolocation CLI tool. Place this file at $IPGEO_HOME/config.yaml (default: ~/.config/ipgeo/config.yaml). VS Code and yaml-language-server users: add '# yaml-language-server: $schema=https://raw.githubusercontent.com/kibaamor/ipgeo/main/cmd/ipgeo/doc/config.schema.json' to the top of your config.yaml for full IntelliSense support.",
+    "type": "object",
+    "required": [
+        "sources"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "http": {
+            "$ref": "#/$defs/HTTPConfig"
+        },
+        "sources": {
+            "description": "Ordered list of IP geolocation sources. Lookup queries sources in order and returns the first successful result.",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/SourceEntry"
+            },
+            "minItems": 1
+        },
+        "updater": {
+            "$ref": "#/$defs/UpdaterConfig"
+        }
+    },
+    "$defs": {
+        "HTTPConfig": {
+            "title": "HTTP Config",
+            "description": "HTTP settings used when ensuring missing source files, running `ipgeo update`, and running `ipgeo upgrade`.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "timeout": {
+                    "description": "HTTP timeout for all requests, as a Go duration. Defaults to 30m when omitted.",
+                    "type": "string",
+                    "pattern": "^(?:[0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|μs|ms|s|m|h))+$",
+                    "default": "30m",
+                    "examples": [
+                        "30s",
+                        "5m",
+                        "30m",
+                        "1.5h"
+                    ]
+                }
+            }
+        },
+        "SourceEntry": {
+            "title": "Source Entry",
+            "description": "Configuration for a single IP geolocation source.",
+            "type": "object",
+            "required": [
+                "type",
+                "name",
+                "filename",
+                "urls"
+            ],
+            "additionalProperties": false,
+            "dependentRequired": {
+                "companion_filename": [
+                    "companion_urls"
+                ],
+                "companion_urls": [
+                    "companion_filename"
+                ]
+            },
+            "properties": {
+                "type": {
+                    "description": "Source database type. Determines which parser opens and queries the file.\n\n- xdb: ip2region v2 format (github.com/lionsoul2014/ip2region). Supports separate IPv4 and IPv6 files via companion_filename.\n- mmdb: MaxMind DB format (github.com/oschwald/maxminddb-golang). Supports an optional companion mmdb for ASN data via companion_filename.\n- ipdb: IPIP.net binary format (github.com/ipipdotnet/ipdb-go).\n- ip2location: IP2Location BIN format (github.com/ip2location/ip2location-go/v9).",
+                    "type": "string",
+                    "enum": [
+                        "xdb",
+                        "mmdb",
+                        "ipdb",
+                        "ip2location"
+                    ]
+                },
+                "name": {
+                    "description": "Human-readable name for this source. Must be unique across sources. Used by `--source` and status output. Inline lookup output renders the lookup result, for example `1.1.1.1  [Australia/New South Wales/Sydney,Cloudflare,13335]`.",
+                    "type": "string",
+                    "minLength": 1,
+                    "examples": [
+                        "ip2region",
+                        "DBIPCityLite",
+                        "GeoLite2",
+                        "IPIP.net Free City",
+                        "IP2Location DB3"
+                    ]
+                },
+                "filename": {
+                    "description": "Local source filename resolved under IPGEO_HOME. Runtime validation rejects values whose resolved path is IPGEO_HOME itself or outside it. Must not conflict with any source filename or companion_filename. Existing files are reused on startup; `ipgeo update` refreshes them.",
+                    "type": "string",
+                    "minLength": 1,
+                    "examples": [
+                        "ip2region_v4.xdb",
+                        "dbip-city-lite.mmdb",
+                        "GeoLite2-City.mmdb",
+                        "city.free.ipdb",
+                        "ip2location-db3.bin"
+                    ]
+                },
+                "urls": {
+                    "description": "Source download URLs tried in order when a file is missing or `ipgeo update` runs. The first HTTP 200 response is used. URLs ending in .gz are decompressed. {YEAR} and {MONTH} use the current UTC year/month.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uri",
+                        "pattern": "^https?://"
+                    },
+                    "minItems": 1,
+                    "examples": [
+                        [
+                            "https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb",
+                            "https://gh-proxy.com/https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb",
+                            "https://cdn.jsdelivr.net/gh/lionsoul2014/ip2region@master/data/ip2region_v4.xdb"
+                        ],
+                        [
+                            "https://download.db-ip.com/free/dbip-city-lite-{YEAR}-{MONTH}.mmdb.gz"
+                        ]
+                    ]
+                },
+                "companion_filename": {
+                    "description": "Local companion source filename resolved under IPGEO_HOME. Runtime validation rejects values whose resolved path is IPGEO_HOME itself or outside it. Must not conflict with any source filename or companion_filename.\n\nUsed by:\n- xdb: IPv6 .xdb file.\n- mmdb: companion ASN .mmdb file.",
+                    "type": "string",
+                    "minLength": 1,
+                    "examples": [
+                        "ip2region_v6.xdb",
+                        "GeoLite2-ASN.mmdb"
+                    ]
+                },
+                "companion_urls": {
+                    "description": "Download URLs for the companion source file. Required when companion_filename is set.\n\nUsed by:\n- xdb: IPv6 .xdb URLs.\n- mmdb: companion ASN .mmdb URLs, queried with the main city database.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uri",
+                        "pattern": "^https?://"
+                    },
+                    "minItems": 1
+                }
+            }
+        },
+        "UpdaterConfig": {
+            "title": "Updater Config",
+            "description": "Settings for the CLI upgrade command ('ipgeo upgrade').",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "release_urls": {
+                    "description": "GitHub Releases API URLs tried in order by `ipgeo upgrade`. The matching OS/architecture asset replaces the running binary. {YEAR} and {MONTH} are not supported.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uri",
+                        "pattern": "^https?://"
+                    },
+                    "minItems": 1,
+                    "examples": [
+                        [
+                            "https://api.github.com/repos/kibaamor/ipgeo/releases/latest",
+                            "https://gh-proxy.com/https://api.github.com/repos/kibaamor/ipgeo/releases/latest"
+                        ]
+                    ]
+                }
+            }
+        }
+    }
+}

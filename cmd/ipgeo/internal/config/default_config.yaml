@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kibaamor/ipgeo/main/cmd/ipgeo/doc/config.schema.json
+
+http:
+  # HTTP timeout for all requests, as a Go duration (e.g. "30s", "5m").
+  timeout: 30m
+
+sources:
+  # ip2region: open-source, city-level accuracy for China, country-level globally.
+  # Queried first for Chinese city data; non-Chinese results may be country-only.
+  # Uses separate xdb files for IPv4 and IPv6.
+  - type: xdb
+    name: ip2region
+    filename: ip2region_v4.xdb
+    urls:
+      - https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb
+      - https://gh-proxy.com/https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v4.xdb
+      - https://cdn.jsdelivr.net/gh/lionsoul2014/ip2region@master/data/ip2region_v4.xdb
+    companion_filename: ip2region_v6.xdb
+    companion_urls:
+      - https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v6.xdb
+      - https://gh-proxy.com/https://raw.githubusercontent.com/lionsoul2014/ip2region/master/data/ip2region_v6.xdb
+      - https://cdn.jsdelivr.net/gh/lionsoul2014/ip2region@master/data/ip2region_v6.xdb
+
+  # GeoLite2: free global city-level location with ASN data.
+  # City and ASN files are queried together as one source.
+  - type: mmdb
+    name: GeoLite2
+    filename: GeoLite2-City.mmdb
+    urls:
+      - https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb
+      - https://gh-proxy.com/https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb
+    companion_filename: GeoLite2-ASN.mmdb
+    companion_urls:
+      - https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb
+      - https://gh-proxy.com/https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb
+
+  # DBIPCityLite: monthly global city-level source, CC BY 4.0.
+  # {YEAR} and {MONTH} are expanded when downloading the source file.
+  - type: mmdb
+    name: DBIPCityLite
+    filename: dbip-city-lite.mmdb
+    urls:
+      - https://download.db-ip.com/free/dbip-city-lite-{YEAR}-{MONTH}.mmdb.gz
+
+updater:
+  # GitHub API URLs used by `ipgeo upgrade` to check for the latest release.
+  release_urls:
+    - https://api.github.com/repos/kibaamor/ipgeo/releases/latest
+    - https://gh-proxy.com/https://api.github.com/repos/kibaamor/ipgeo/releases/latest

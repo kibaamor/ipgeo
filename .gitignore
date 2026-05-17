@@ -1,0 +1,18 @@
+# Binary
+/ipgeo
+/ipgeo.exe
+
+# Build output
+dist/
+
+# Go test cache
+*.test
+*.out
+.coverage/
+
+# Test fixtures/artifacts
+testdata/tmp/
+
+# OS
+.DS_Store
+Thumbs.db
