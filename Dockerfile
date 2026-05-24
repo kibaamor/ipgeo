@@ -1,4 +1,4 @@
 FROM scratch
 ARG TARGETPLATFORM
-COPY $TARGETPLATFORM/ipgeo /ipgeo
-ENTRYPOINT ["/ipgeo"]
+COPY $TARGETPLATFORM/ipgeo /usr/bin/ipgeo
+ENTRYPOINT ["/usr/bin/ipgeo"]

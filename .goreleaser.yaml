@@ -20,16 +20,17 @@ upx:
 
 builds:
   - id: ipgeo
-    main: ./cmd/ipgeo
+    dir: cmd/ipgeo
+    main: .
     binary: ipgeo
     env:
       - CGO_ENABLED=0
     mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
       - -s -w
-      - -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.Version={{.Tag}}
-      - -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.Commit={{.Commit}}
-      - -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.BuildDate={{.Date}}
+      - -X cmd.Version={{.Tag}}
+      - -X cmd.Commit={{.Commit}}
+      - -X cmd.BuildDate={{.Date}}
     goos:
       - linux
       - darwin
