@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	Version   = "dev"
-	Commit    = "none"
-	BuildDate = "unknown"
+	version   = "dev"
+	gitCommit = "unknown"
+	buildDate = "unknown"
 )
 
 func newInfoCmd(cfg *config.Config) *cobra.Command {
@@ -21,9 +21,9 @@ func newInfoCmd(cfg *config.Config) *cobra.Command {
 		Use:   "info",
 		Short: "Show version and configuration information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("Version:    %s\n", Version)
-			fmt.Printf("Commit:     %s\n", Commit)
-			fmt.Printf("Build Date: %s\n", BuildDate)
+			fmt.Printf("Version:    %s\n", version)
+			fmt.Printf("Commit:     %s\n", gitCommit)
+			fmt.Printf("Build Date: %s\n", buildDate)
 			fmt.Println("License:    Apache License 2.0")
 			fmt.Printf("Home Dir:   %s\n", cfg.HomeDir())
 			fmt.Printf("Config:     %s\n", filepath.Join(cfg.HomeDir(), "config.yaml"))

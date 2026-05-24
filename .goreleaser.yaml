@@ -26,11 +26,13 @@ builds:
     env:
       - CGO_ENABLED=0
     mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
     ldflags:
       - -s -w
-      - -X cmd.Version={{.Tag}}
-      - -X cmd.Commit={{.Commit}}
-      - -X cmd.BuildDate={{.Date}}
+      - -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.version={{.Version}}
+      - -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.gitCommit={{.ShortCommit}}
+      - -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.buildDate={{.Date}}
     goos:
       - linux
       - darwin

@@ -1,14 +1,14 @@
 BINARY    = ipgeo
-VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-BUILD_DATE = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 COVERAGE_DIR ?= .coverage
 COVERAGE_PROFILE ?= $(COVERAGE_DIR)/coverage.out
 COVERAGE_HTML ?= $(COVERAGE_DIR)/coverage.html
 COVERAGE_THRESHOLD ?= 95.0
-LDFLAGS   = -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.Version=$(VERSION) \
-            -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.Commit=$(COMMIT) \
-            -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.BuildDate=$(BUILD_DATE)
+LDFLAGS   = -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.version=$(VERSION) \
+            -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.gitCommit=$(GIT_COMMIT) \
+            -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.buildDate=$(BUILD_DATE)
 
 .PHONY: build clean test coverage tidy lint lint-fix
 

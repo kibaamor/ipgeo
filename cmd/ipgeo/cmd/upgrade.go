@@ -11,7 +11,7 @@ func newUpgradeCmd(cfg *config.Config) *cobra.Command {
 		Use:   "upgrade",
 		Short: "Upgrade the ipgeo CLI binary",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return updater.SelfUpdate(cfg, Version)
+			return updater.SelfUpdate(cfg, version)
 		},
 	}
 }
