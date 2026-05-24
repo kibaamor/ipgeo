@@ -1,0 +1,4 @@
+FROM scratch
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/ipgeo /ipgeo
+ENTRYPOINT ["/ipgeo"]
