@@ -41,7 +41,7 @@ func SelfUpdate(cfg *config.Config, currentVersion string) error {
 		return err
 	}
 
-	if release.TagName == currentVersion {
+	if strings.TrimPrefix(release.TagName, "v") == currentVersion {
 		fmt.Printf("Already at the latest version (%s).\n", currentVersion)
 		return nil
 	}
