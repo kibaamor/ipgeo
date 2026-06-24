@@ -30,7 +30,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Test
-        run: go clean -testcache && go test github.com/kibaamor/ipgeo/... && go test github.com/kibaamor/ipgeo/cmd/ipgeo/...
+        run: make test
 
       - name: Log in to GHCR
         uses: docker/login-action@v4

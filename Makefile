@@ -24,6 +24,7 @@ clean:
 	rm -f $(BINARY)
 
 test:
+	go clean -testcache
 	go test github.com/kibaamor/ipgeo/...
 	go test -C ./cmd/ipgeo ./...
 
