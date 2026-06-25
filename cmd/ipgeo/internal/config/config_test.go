@@ -44,7 +44,7 @@ func TestLoad_CreatesDefaultConfig(t *testing.T) {
 		t.Fatalf("read generated config: %v", err)
 	}
 	content := string(data)
-	for _, want := range []string{"http:", "timeout: 30m", "sources:", "type: xdb", "companion_filename:", "companion_urls:"} {
+	for _, want := range []string{"http:", "timeout: 30m", "retryWaitMin: 0s", "retryWaitMax: 3s", "retryMax: 1", "sources:", "type: xdb", "companion_filename:", "companion_urls:"} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("generated config missing %q:\n%s", want, content)
 		}
@@ -103,6 +103,88 @@ func TestLoadFromData_DefaultHTTPTimeout(t *testing.T) {
 	}
 }
 
+func TestLoadFromData_ParsesRetryConfig(t *testing.T) {
+	cfg, err := loadFromData([]byte(`
+http:
+  timeout: 5s
+  retryWaitMin: 1s
+  retryWaitMax: 10s
+  retryMax: 3
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`), t.TempDir())
+	if err != nil {
+		t.Fatalf("loadFromData() error: %v", err)
+	}
+	if got := cfg.HTTPRetryWaitMin(); got != 1*time.Second {
+		t.Fatalf("HTTPRetryWaitMin() = %v, want 1s", got)
+	}
+	if got := cfg.HTTPRetryWaitMax(); got != 10*time.Second {
+		t.Fatalf("HTTPRetryWaitMax() = %v, want 10s", got)
+	}
+	if got := cfg.HTTPRetryMax(); got != 3 {
+		t.Fatalf("HTTPRetryMax() = %d, want 3", got)
+	}
+}
+
+func TestLoadFromData_RetryMaxZeroDisablesRetries(t *testing.T) {
+	cfg, err := loadFromData([]byte(`
+http:
+  retryMax: 0
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`), t.TempDir())
+	if err != nil {
+		t.Fatalf("loadFromData() error: %v", err)
+	}
+	if got := cfg.HTTPRetryMax(); got != 0 {
+		t.Fatalf("HTTPRetryMax() = %d, want 0", got)
+	}
+}
+
+func TestLoadFromData_RetryWaitMaxZeroHonored(t *testing.T) {
+	cfg, err := loadFromData([]byte(`
+http:
+  retryWaitMax: 0s
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`), t.TempDir())
+	if err != nil {
+		t.Fatalf("loadFromData() error: %v", err)
+	}
+	if got := cfg.HTTPRetryWaitMax(); got != 0 {
+		t.Fatalf("HTTPRetryWaitMax() = %v, want 0s", got)
+	}
+}
+
+func TestLoadFromData_DefaultRetryConfig(t *testing.T) {
+	cfg, err := loadFromData([]byte(minimalConfig), t.TempDir())
+	if err != nil {
+		t.Fatalf("loadFromData() error: %v", err)
+	}
+	if got := cfg.HTTPRetryWaitMin(); got != 0*time.Second {
+		t.Fatalf("HTTPRetryWaitMin() = %v, want 0s", got)
+	}
+	if got := cfg.HTTPRetryWaitMax(); got != 3*time.Second {
+		t.Fatalf("HTTPRetryWaitMax() = %v, want 3s", got)
+	}
+	if got := cfg.HTTPRetryMax(); got != 1 {
+		t.Fatalf("HTTPRetryMax() = %d, want 1", got)
+	}
+}
+
 func TestLoadFromData_NormalizesSourceIdentityFields(t *testing.T) {
 	cfg, err := loadFromData([]byte(`
 sources:
@@ -157,6 +239,91 @@ sources:
       - https://example.com/test.mmdb
 `,
 			wantErr: "greater than 0",
+		},
+		{
+			name: "invalid retryWaitMin duration",
+			config: `
+http:
+  retryWaitMin: nope
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`,
+			wantErr: "http.retryWaitMin",
+		},
+		{
+			name: "invalid retryWaitMax duration",
+			config: `
+http:
+  retryWaitMax: nope
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`,
+			wantErr: "http.retryWaitMax",
+		},
+		{
+			name: "negative retryMax",
+			config: `
+http:
+  retryMax: -1
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`,
+			wantErr: "retryMax",
+		},
+		{
+			name: "negative retryWaitMin",
+			config: `
+http:
+  retryWaitMin: -1s
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`,
+			wantErr: "retryWaitMin",
+		},
+		{
+			name: "negative retryWaitMax",
+			config: `
+http:
+  retryWaitMax: -1s
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`,
+			wantErr: "retryWaitMax",
+		},
+		{
+			name: "retryWaitMin greater than retryWaitMax",
+			config: `
+http:
+  retryWaitMin: 10s
+  retryWaitMax: 3s
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+`,
+			wantErr: "retryWaitMin",
 		},
 		{
 			name:    "missing sources",

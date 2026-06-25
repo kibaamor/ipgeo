@@ -103,8 +103,14 @@ func (r errReader) Read([]byte) (int, error) {
 	return 0, r.err
 }
 
-func TestNewHTTPClient_UsesConfigTimeout(t *testing.T) {
-	cfg := &config.Config{HTTP: config.HTTPConfig{Timeout: "5s"}}
+func TestNewHTTPClient_UsesConfigValues(t *testing.T) {
+	r3 := 3
+	cfg := &config.Config{HTTP: config.HTTPConfig{
+		Timeout:     "5s",
+		RetryWaitMin: "1s",
+		RetryWaitMax: "10s",
+		RetryMax:     &r3,
+	}}
 	client := newHTTPClient(cfg)
 	if client.Timeout != 5*time.Second {
 		t.Fatalf("client timeout = %v, want 5s", client.Timeout)
@@ -115,5 +121,43 @@ func TestNewHTTPClient_UsesConfigTimeout(t *testing.T) {
 	}
 	if transport.Client == nil {
 		t.Fatal("retryable transport client is nil")
+	}
+	if transport.Client.RetryWaitMin != 1*time.Second {
+		t.Fatalf("retry wait min = %v, want 1s", transport.Client.RetryWaitMin)
+	}
+	if transport.Client.RetryWaitMax != 10*time.Second {
+		t.Fatalf("retry wait max = %v, want 10s", transport.Client.RetryWaitMax)
+	}
+	if transport.Client.RetryMax != 3 {
+		t.Fatalf("retry max = %d, want 3", transport.Client.RetryMax)
+	}
+}
+
+func TestNewHTTPClient_RetryMaxZeroDisablesRetries(t *testing.T) {
+	r0 := 0
+	cfg := &config.Config{HTTP: config.HTTPConfig{
+		RetryMax: &r0,
+	}}
+	client := newHTTPClient(cfg)
+	transport, ok := client.Transport.(*retryablehttp.RoundTripper)
+	if !ok {
+		t.Fatalf("client transport = %T, want *retryablehttp.RoundTripper", client.Transport)
+	}
+	if transport.Client.RetryMax != 0 {
+		t.Fatalf("retry max = %d, want 0", transport.Client.RetryMax)
+	}
+}
+
+func TestNewHTTPClient_RetryWaitMaxZeroHonored(t *testing.T) {
+	cfg := &config.Config{HTTP: config.HTTPConfig{
+		RetryWaitMax: "0s",
+	}}
+	client := newHTTPClient(cfg)
+	transport, ok := client.Transport.(*retryablehttp.RoundTripper)
+	if !ok {
+		t.Fatalf("client transport = %T, want *retryablehttp.RoundTripper", client.Transport)
+	}
+	if transport.Client.RetryWaitMax != 0 {
+		t.Fatalf("retry wait max = %v, want 0s", transport.Client.RetryWaitMax)
 	}
 }

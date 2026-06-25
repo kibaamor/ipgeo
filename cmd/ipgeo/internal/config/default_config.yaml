@@ -4,6 +4,11 @@ http:
   # HTTP timeout for all requests, as a Go duration (e.g. "30s", "5m").
   timeout: 30m
 
+  # HTTP retry settings for all requests.
+  retryWaitMin: 0s
+  retryWaitMax: 3s
+  retryMax: 1
+
 sources:
   # ip2region: open-source, city-level accuracy for China, country-level globally.
   # Queried first for Chinese city data; non-Chinese results may be country-only.

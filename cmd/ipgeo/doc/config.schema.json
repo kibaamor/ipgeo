@@ -42,6 +42,34 @@
                         "30m",
                         "1.5h"
                     ]
+                },
+                "retryWaitMin": {
+                    "description": "Minimum wait time before first retry, as a Go duration. Defaults to 0s when omitted.",
+                    "type": "string",
+                    "pattern": "^(?:[0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|μs|ms|s|m|h))+$",
+                    "default": "0s",
+                    "examples": [
+                        "0s",
+                        "1s",
+                        "500ms"
+                    ]
+                },
+                "retryWaitMax": {
+                    "description": "Maximum wait time between retries, as a Go duration. Defaults to 3s when omitted.",
+                    "type": "string",
+                    "pattern": "^(?:[0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|μs|ms|s|m|h))+$",
+                    "default": "3s",
+                    "examples": [
+                        "3s",
+                        "10s",
+                        "5m"
+                    ]
+                },
+                "retryMax": {
+                    "description": "Maximum number of retry attempts. Defaults to 1 when omitted. Set to 0 to disable retries.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 1
                 }
             }
         },

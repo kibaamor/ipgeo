@@ -41,12 +41,14 @@ func readAllWithLimit(r io.Reader, limit int64) ([]byte, error) {
 }
 
 func newHTTPClient(cfg *config.Config) *http.Client {
-	timeout := cfg.HTTPTimeout()
 	retryClient := retryablehttp.NewClient()
 	retryClient.Logger = nil
+	retryClient.RetryWaitMin = cfg.HTTPRetryWaitMin()
+	retryClient.RetryWaitMax = cfg.HTTPRetryWaitMax()
+	retryClient.RetryMax = cfg.HTTPRetryMax()
 
 	client := retryClient.StandardClient()
-	client.Timeout = timeout
+	client.Timeout = cfg.HTTPTimeout()
 	return client
 }
 

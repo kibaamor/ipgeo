@@ -14,10 +14,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const defaultHTTPTimeout = 30 * time.Minute
+const (
+	defaultHTTPTimeout  = 30 * time.Minute
+	defaultRetryWaitMin = 0 * time.Second
+	defaultRetryWaitMax = 3 * time.Second
+	defaultRetryMax     = 1
+)
 
 type HTTPConfig struct {
-	Timeout string `yaml:"timeout"`
+	Timeout     string `yaml:"timeout"`
+	RetryWaitMin string `yaml:"retryWaitMin"`
+	RetryWaitMax string `yaml:"retryWaitMax"`
+	RetryMax     *int   `yaml:"retryMax"`
 }
 
 type SourceEntry = sources.Entry
@@ -39,6 +47,29 @@ func (c *Config) HTTPTimeout() time.Duration {
 		return defaultHTTPTimeout
 	}
 	return timeout
+}
+
+func (c *Config) HTTPRetryWaitMin() time.Duration {
+	d, err := parseRetryDuration(c.HTTP.RetryWaitMin, "retryWaitMin")
+	if err != nil || d == nil {
+		return defaultRetryWaitMin
+	}
+	return *d
+}
+
+func (c *Config) HTTPRetryWaitMax() time.Duration {
+	d, err := parseRetryDuration(c.HTTP.RetryWaitMax, "retryWaitMax")
+	if err != nil || d == nil {
+		return defaultRetryWaitMax
+	}
+	return *d
+}
+
+func (c *Config) HTTPRetryMax() int {
+	if c.HTTP.RetryMax == nil {
+		return defaultRetryMax
+	}
+	return *c.HTTP.RetryMax
 }
 
 func (c *Config) HomeDir() string {
@@ -106,6 +137,20 @@ func loadFromData(data []byte, homeDir string) (*Config, error) {
 func (c *Config) validate() error {
 	if _, err := parseHTTPTimeout(c.HTTP.Timeout); err != nil {
 		return err
+	}
+	min, err := parseRetryDuration(c.HTTP.RetryWaitMin, "retryWaitMin")
+	if err != nil {
+		return err
+	}
+	max, err := parseRetryDuration(c.HTTP.RetryWaitMax, "retryWaitMax")
+	if err != nil {
+		return err
+	}
+	if min != nil && max != nil && *min > *max {
+		return fmt.Errorf("config http.retryWaitMin (%s) must be <= http.retryWaitMax (%s)", c.HTTP.RetryWaitMin, c.HTTP.RetryWaitMax)
+	}
+	if c.HTTP.RetryMax != nil && *c.HTTP.RetryMax < 0 {
+		return errors.New("config http.retryMax must be >= 0")
 	}
 	if len(c.Sources) == 0 {
 		return errors.New("config sources must contain at least one source")
@@ -200,4 +245,18 @@ func parseHTTPTimeout(value string) (time.Duration, error) {
 		return 0, errors.New("config http.timeout must be greater than 0")
 	}
 	return timeout, nil
+}
+
+func parseRetryDuration(value, fieldName string) (*time.Duration, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return nil, fmt.Errorf("config http.%s must be a valid Go duration: %w", fieldName, err)
+	}
+	if d < 0 {
+		return nil, fmt.Errorf("config http.%s must be >= 0", fieldName)
+	}
+	return &d, nil
 }
