@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/kibaamor/ipgeo/cmd/ipgeo/internal/clirun"
 	"github.com/kibaamor/ipgeo/cmd/ipgeo/internal/config"
 	"github.com/spf13/cobra"
@@ -22,7 +24,7 @@ func buildRootCmd(cfg *config.Config) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return clirun.Run(clirun.Options{
+			return clirun.Run(cmd.Context(), clirun.Options{
 				Config:     cfg,
 				Args:       args,
 				JSONMode:   jsonMode,
@@ -40,15 +42,17 @@ func buildRootCmd(cfg *config.Config) *cobra.Command {
 
 	root.AddCommand(newInfoCmd(cfg))
 	root.AddCommand(newUpdateCmd(cfg))
-	root.AddCommand(newUpgradeCmd(cfg))
+	if cmd := newUpgradeCmd(cfg); cmd != nil {
+		root.AddCommand(cmd)
+	}
 
 	return root
 }
 
-func Execute() error {
+func Execute(ctx context.Context) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
-	return buildRootCmd(cfg).Execute()
+	return buildRootCmd(cfg).ExecuteContext(ctx)
 }

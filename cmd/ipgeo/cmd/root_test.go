@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -54,7 +55,7 @@ func TestRootCmd_InvalidSourceNameReturnsSourceNameError(t *testing.T) {
 
 	var err error
 	out := captureStdout(t, func() {
-		err = root.Execute()
+		err = root.ExecuteContext(context.Background())
 	})
 	if err == nil {
 		t.Fatal("Execute() error = nil")

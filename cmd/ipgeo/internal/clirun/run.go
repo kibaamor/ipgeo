@@ -1,6 +1,7 @@
 package clirun
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/netip"
@@ -25,8 +26,8 @@ type Options struct {
 	OutputFile string
 }
 
-func Run(opts Options) (runErr error) {
-	svc, err := loadSources(opts.Config, opts.SourceName)
+func Run(ctx context.Context, opts Options) (runErr error) {
+	svc, err := loadSources(ctx, opts.Config, opts.SourceName)
 	if err != nil {
 		return err
 	}
@@ -101,12 +102,12 @@ func handleSegment(renderer output.Renderer, lookup func(netip.Addr) (*ipgeo.Res
 	return renderer.WriteResult(result)
 }
 
-func loadSources(cfg *config.Config, sourceName string) (*ipgeo.Client, error) {
+func loadSources(ctx context.Context, cfg *config.Config, sourceName string) (*ipgeo.Client, error) {
 	selected, err := sources.Select(cfg.Sources, sourceName)
 	if err != nil {
 		return nil, err
 	}
-	if err := updater.EnsureSources(cfg, selected); err != nil {
+	if err := updater.EnsureSources(ctx, cfg, selected); err != nil {
 		return nil, err
 	}
 

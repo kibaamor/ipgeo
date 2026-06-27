@@ -10,20 +10,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/kibaamor/ipgeo/cmd/ipgeo/internal/config"
+	"github.com/kibaamor/ipgeo/cmd/ipgeo/internal/downloader"
 )
-
-// maxBinarySize limits downloaded and extracted self-update assets to 200 MiB.
-const maxBinarySize = 200 << 20
-
-// maxReleaseMetaSize limits release metadata and checksum files to 1 MiB.
-const maxReleaseMetaSize = 1 << 20
 
 type githubRelease struct {
 	TagName string `json:"tag_name"`
@@ -33,10 +27,10 @@ type githubRelease struct {
 	} `json:"assets"`
 }
 
-func SelfUpdate(cfg *config.Config, currentVersion string) error {
-	client := newHTTPClient(cfg)
+func SelfUpdate(ctx context.Context, cfg *config.Config, currentVersion string) error {
+	d := newDownloader(cfg)
 
-	release, err := fetchRelease(cfg.Updater.ReleaseURLs, client)
+	release, err := fetchRelease(ctx, d, cfg.Updater.ReleaseURLs)
 	if err != nil {
 		return err
 	}
@@ -50,32 +44,34 @@ func SelfUpdate(cfg *config.Config, currentVersion string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "Downloading %s (%s)...\n", release.TagName, assetName)
 
 	execPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("get executable path: %w", err)
 	}
 
-	archivePath, err := downloadToTemp(assetURL, filepath.Dir(execPath), client)
+	archiveDir, err := os.MkdirTemp("", "ipgeo-update")
 	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(archiveDir) }()
+	archivePath := filepath.Join(archiveDir, "archive")
+
+	if err := d.DownloadFiles(ctx, []downloader.FileSpec{{
+		Name: "upgrading ipgeo",
+		URLs: []string{assetURL},
+		Path: archivePath,
+	}}); err != nil {
 		return err
 	}
-	defer func() { _ = os.Remove(archivePath) }()
 
 	fmt.Fprintln(os.Stderr, "Verifying checksum...")
-	if err := verifyAssetChecksum(release, assetName, archivePath, client); err != nil {
+	if err := verifyAssetChecksum(ctx, d, release, assetName, archivePath); err != nil {
 		return fmt.Errorf("integrity check failed: %w", err)
 	}
 
-	deferred, err := installBinary(archivePath, assetName, execPath)
-	if err != nil {
+	if err := installBinary(archivePath, assetName, execPath); err != nil {
 		return err
-	}
-
-	if deferred {
-		fmt.Printf("Successfully downloaded %s. The update is scheduled to finish after Windows reboots.\n", release.TagName)
-		return nil
 	}
 	fmt.Printf("Successfully updated to %s. Please restart ipgeo.\n", release.TagName)
 	return nil
@@ -105,116 +101,42 @@ func assetMatchesRuntime(name, goos, goarch string) bool {
 	return false
 }
 
-func downloadToTemp(url, dir string, client *http.Client) (string, error) {
-	f, err := os.CreateTemp(dir, "ipgeo-update-*")
+func installBinary(archivePath, assetName, execPath string) error {
+	extractedPath, err := extractBinary(archivePath, assetName, "ipgeo", filepath.Dir(execPath))
 	if err != nil {
-		return "", err
+		return fmt.Errorf("extract binary: %w", err)
 	}
-	path := f.Name()
-
-	fmt.Fprintf(os.Stderr, "Fetching asset from %s...\n", url)
-	if err := downloadRawTo(url, f, client, maxBinarySize); err != nil {
-		_ = f.Close()
-		_ = os.Remove(path)
-		return "", fmt.Errorf("download asset: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		_ = os.Remove(path)
-		return "", fmt.Errorf("close temp file: %w", err)
-	}
-	return path, nil
-}
-
-func installBinary(archivePath, assetName, execPath string) (bool, error) {
-	binaryName := "ipgeo"
-	if runtime.GOOS == "windows" {
-		binaryName = "ipgeo.exe"
-	}
-
-	extractedPath, err := extractBinary(archivePath, assetName, binaryName, filepath.Dir(execPath))
-	if err != nil {
-		return false, fmt.Errorf("extract binary: %w", err)
-	}
-	var committed bool
-	defer func() {
-		if !committed {
-			_ = os.Remove(extractedPath)
-		}
-	}()
+	defer func() { _ = os.Remove(extractedPath) }()
 
 	if err := os.Chmod(extractedPath, 0o755); err != nil {
-		return false, fmt.Errorf("chmod: %w", err)
+		return fmt.Errorf("chmod: %w", err)
 	}
-	deferred, err := replaceBinary(extractedPath, execPath)
+	if err := os.Rename(extractedPath, execPath); err != nil {
+		return fmt.Errorf("replace binary: %w", err)
+	}
+	return nil
+}
+
+func fetchRelease(ctx context.Context, d *downloader.Downloader, urls []string) (*githubRelease, error) {
+	data, err := d.Fetch(ctx, urls)
 	if err != nil {
-		return false, fmt.Errorf("replace binary: %w", err)
+		return nil, err
 	}
-	committed = true
-	return deferred, nil
+	var release githubRelease
+	if err := json.Unmarshal(data, &release); err != nil {
+		return nil, err
+	}
+	return &release, nil
 }
 
-func fetchRelease(urls []string, client *http.Client) (*githubRelease, error) {
-	if len(urls) == 0 {
-		return nil, fmt.Errorf("no release URLs configured")
-	}
-	var lastErr error
-	for _, u := range urls {
-		fmt.Fprintf(os.Stderr, "Fetching release info from %s...\n", u)
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u, nil)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "  failed: %v\n", err)
-			lastErr = err
-			continue
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "  failed: %v\n", err)
-			lastErr = err
-			continue
-		}
-		if resp.StatusCode != http.StatusOK {
-			_ = resp.Body.Close()
-			lastErr = fmt.Errorf("HTTP %s", resp.Status)
-			fmt.Fprintf(os.Stderr, "  failed: %v\n", lastErr)
-			continue
-		}
-		var release githubRelease
-		data, err := readAllWithLimit(resp.Body, maxReleaseMetaSize)
-		_ = resp.Body.Close()
-		if err != nil {
-			lastErr = fmt.Errorf("read release info: %w", err)
-			continue
-		}
-		err = json.Unmarshal(data, &release)
-		if err != nil {
-			lastErr = fmt.Errorf("parse release info: %w", err)
-			continue
-		}
-		return &release, nil
-	}
-	return nil, fmt.Errorf("all release URLs failed: %w", lastErr)
-}
-
-func verifyAssetChecksum(release *githubRelease, assetName, archivePath string, client *http.Client) error {
+func verifyAssetChecksum(ctx context.Context, d *downloader.Downloader, release *githubRelease, assetName, archivePath string) error {
 	checksumURL, err := findChecksumURL(release)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, checksumURL, nil)
+	data, err := d.Fetch(ctx, []string{checksumURL})
 	if err != nil {
-		return fmt.Errorf("download checksums.txt: %w", err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("download checksums.txt: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download checksums.txt: HTTP %s", resp.Status)
-	}
-	data, err := readAllWithLimit(resp.Body, maxReleaseMetaSize)
-	if err != nil {
-		return fmt.Errorf("read checksums.txt: %w", err)
+		return err
 	}
 	expectedHex, err := parseChecksumEntry(data, assetName)
 	if err != nil {
@@ -275,7 +197,7 @@ func writeExtractedBinary(src io.Reader, destDir string) (string, error) {
 		return "", err
 	}
 	destPath := out.Name()
-	if err := copyWithLimit(out, src, maxBinarySize); err != nil {
+	if _, err := io.Copy(out, src); err != nil {
 		_ = out.Close()
 		_ = os.Remove(destPath)
 		return "", err

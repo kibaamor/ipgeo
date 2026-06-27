@@ -11,7 +11,7 @@ func newUpdateCmd(cfg *config.Config) *cobra.Command {
 		Use:   "update",
 		Short: "Update source database files",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return updater.UpdateAll(cfg)
+			return updater.UpdateAll(cmd.Context(), cfg)
 		},
 	}
 }

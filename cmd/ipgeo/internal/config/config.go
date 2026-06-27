@@ -22,7 +22,7 @@ const (
 )
 
 type HTTPConfig struct {
-	Timeout     string `yaml:"timeout"`
+	Timeout      string `yaml:"timeout"`
 	RetryWaitMin string `yaml:"retryWaitMin"`
 	RetryWaitMax string `yaml:"retryWaitMax"`
 	RetryMax     *int   `yaml:"retryMax"`
