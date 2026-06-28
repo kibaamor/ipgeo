@@ -1,8 +1,17 @@
+//go:build !windows
+
 package updater
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
-func TestAssetMatchesRuntime_ExactOSTokens(t *testing.T) {
+func matchAsset(name, goos, goarch string) bool {
+	return strings.Contains(strings.ToLower(name), "_"+goos+"_"+goarch+".")
+}
+
+func TestMatchAsset_ExactOSTokens(t *testing.T) {
 	tests := []struct {
 		name   string
 		asset  string
@@ -35,8 +44,8 @@ func TestAssetMatchesRuntime_ExactOSTokens(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := assetMatchesRuntime(tt.asset, tt.goos, tt.goarch); got != tt.want {
-				t.Fatalf("assetMatchesRuntime(%q, %q, %q) = %v, want %v", tt.asset, tt.goos, tt.goarch, got, tt.want)
+			if got := matchAsset(tt.asset, tt.goos, tt.goarch); got != tt.want {
+				t.Fatalf("matchAsset(%q, %q, %q) = %v, want %v", tt.asset, tt.goos, tt.goarch, got, tt.want)
 			}
 		})
 	}

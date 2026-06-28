@@ -37,10 +37,10 @@ func (pg *ProgressGroup) AddBar(name string) *ProgressBar {
 		),
 		mpb.AppendDecorators(
 			decor.CountersKibiByte(" %.1f / %.1f"),
-			decor.AverageSpeed(decor.SizeB1024(0), " %.1f"),
+			decor.AverageSpeed(decor.SizeB1024(0), " %.1f "),
 			decor.OnComplete(
 				decor.AverageETA(decor.ET_STYLE_GO),
-				" done",
+				"done",
 			),
 		),
 	)
