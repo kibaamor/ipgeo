@@ -1,10 +1,13 @@
 package downloader
 
 import (
+	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -259,5 +262,297 @@ func TestDownloadFiles_CtxCancellation(t *testing.T) {
 		if strings.HasPrefix(e.Name(), "ipgeo-download-") {
 			t.Fatalf("temp file not cleaned up: %s", e.Name())
 		}
+	}
+}
+
+// gzCompress is a helper that gzip-compresses the given data.
+func gzCompress(t *testing.T, data []byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	w := gzip.NewWriter(&buf)
+	if _, err := w.Write(data); err != nil {
+		t.Fatalf("gzip write: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("gzip close: %v", err)
+	}
+	return buf.Bytes()
+}
+
+func TestDownloadFiles_AutoDecompress_Gz(t *testing.T) {
+	payload := []byte("hello world decompressed data")
+	compressed := gzCompress(t, payload)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(compressed)))
+		_, _ = w.Write(compressed)
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	destPath := filepath.Join(dir, "db.mmdb")
+	gzipURL := server.URL + "/db.mmdb.gz"
+
+	d := &Downloader{httpClient: server.Client()}
+	err := d.DownloadFiles(context.Background(), []FileSpec{{
+		Name:           "test",
+		URLs:           []string{gzipURL},
+		Path:           destPath,
+		AutoDecompress: true,
+	}})
+	if err != nil {
+		t.Fatalf("DownloadFiles() error: %v", err)
+	}
+
+	data, err := os.ReadFile(destPath)
+	if err != nil {
+		t.Fatalf("read downloaded file: %v", err)
+	}
+	if !bytes.Equal(data, payload) {
+		t.Fatalf("downloaded data = %q, want decompressed payload %q", data, payload)
+	}
+}
+
+func TestDownloadFiles_AutoDecompress_GzSizeLimit(t *testing.T) {
+	// Create a gzip that decompresses to just over maxDecompressedSize bytes.
+	// Use a highly compressible repeated pattern so the compressed payload stays small.
+	bigPayload := bytes.Repeat([]byte("A"), int(maxDecompressedSize)+100)
+	compressed := gzCompress(t, bigPayload)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(compressed)
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	destPath := filepath.Join(dir, "big.mmdb")
+	gzipURL := server.URL + "/big.mmdb.gz"
+
+	d := &Downloader{httpClient: server.Client()}
+	err := d.DownloadFiles(context.Background(), []FileSpec{{
+		Name:           "test",
+		URLs:           []string{gzipURL},
+		Path:           destPath,
+		AutoDecompress: true,
+	}})
+	if err == nil {
+		t.Fatal("DownloadFiles() error = nil, want size limit error")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("DownloadFiles() error = %v, want size limit error", err)
+	}
+}
+
+func TestDownloadFiles_AutoDecompress_TarGz(t *testing.T) {
+	payload := []byte("tar targz payload")
+	dir := t.TempDir()
+
+	var tarBuf bytes.Buffer
+	tw := tar.NewWriter(&tarBuf)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "subdir/db.mmdb",
+		Size: int64(len(payload)),
+		Mode: 0o644,
+	}); err != nil {
+		t.Fatalf("tar write header: %v", err)
+	}
+	if _, err := tw.Write(payload); err != nil {
+		t.Fatalf("tar write: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar close: %v", err)
+	}
+
+	compressed := gzCompress(t, tarBuf.Bytes())
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(compressed)
+	}))
+	defer server.Close()
+
+	tests := []struct{ suffix string }{
+		{".tar.gz"},
+		{".tgz"},
+	}
+	for _, tt := range tests {
+		destPath := filepath.Join(dir, tt.suffix, "db.mmdb")
+		d := &Downloader{httpClient: server.Client()}
+		if err := d.DownloadFiles(context.Background(), []FileSpec{{
+			Name:           "test",
+			URLs:           []string{server.URL + "/archive" + tt.suffix},
+			Path:           destPath,
+			AutoDecompress: true,
+		}}); err != nil {
+			t.Fatalf("%s: DownloadFiles() error: %v", tt.suffix, err)
+		}
+		data, err := os.ReadFile(destPath)
+		if err != nil {
+			t.Fatalf("%s: read file: %v", tt.suffix, err)
+		}
+		if !bytes.Equal(data, payload) {
+			t.Fatalf("%s: data = %q, want %q", tt.suffix, data, payload)
+		}
+	}
+}
+
+func TestDownloadFiles_AutoDecompress_Zip(t *testing.T) {
+	payload := []byte("zip content")
+
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	w, err := zw.Create("prefix/db.mmdb")
+	if err != nil {
+		t.Fatalf("zip create: %v", err)
+	}
+	if _, err := w.Write(payload); err != nil {
+		t.Fatalf("zip write: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("zip close: %v", err)
+	}
+	compressed := zipBuf.Bytes()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(compressed)
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	destPath := filepath.Join(dir, "db.mmdb")
+
+	d := &Downloader{httpClient: server.Client()}
+	if err := d.DownloadFiles(context.Background(), []FileSpec{{
+		Name:           "test",
+		URLs:           []string{server.URL + "/archive.zip"},
+		Path:           destPath,
+		AutoDecompress: true,
+	}}); err != nil {
+		t.Fatalf("DownloadFiles() error: %v", err)
+	}
+
+	data, err := os.ReadFile(destPath)
+	if err != nil {
+		t.Fatalf("read downloaded file: %v", err)
+	}
+	if !bytes.Equal(data, payload) {
+		t.Fatalf("downloaded data = %q, want %q", data, payload)
+	}
+}
+
+func TestDownloadFiles_AutoDecompress_NonCompressedURL(t *testing.T) {
+	// AutoDecompress=true on a plain .mmdb URL should still work as direct download.
+	payload := []byte("hello plain mmdb")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(payload)))
+		_, _ = w.Write(payload)
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	destPath := filepath.Join(dir, "db.mmdb")
+
+	d := &Downloader{httpClient: server.Client()}
+	err := d.DownloadFiles(context.Background(), []FileSpec{{
+		Name:           "test",
+		URLs:           []string{server.URL + "/db.mmdb"},
+		Path:           destPath,
+		AutoDecompress: true,
+	}})
+	if err != nil {
+		t.Fatalf("DownloadFiles() error: %v", err)
+	}
+
+	data, err := os.ReadFile(destPath)
+	if err != nil {
+		t.Fatalf("read downloaded file: %v", err)
+	}
+	if !bytes.Equal(data, payload) {
+		t.Fatalf("downloaded data = %q, want %q", data, payload)
+	}
+}
+
+func TestDownloadFiles_AutoDecompress_EntryNotFound(t *testing.T) {
+	// tar.gz with different filename than expected.
+	payload := []byte("wrong entry")
+	var tarBuf bytes.Buffer
+	tw := tar.NewWriter(&tarBuf)
+	hdr := &tar.Header{
+		Name: "other-file.bin",
+		Size: int64(len(payload)),
+		Mode: 0o644,
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("tar write header: %v", err)
+	}
+	if _, err := tw.Write(payload); err != nil {
+		t.Fatalf("tar write: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar close: %v", err)
+	}
+
+	var gzBuf bytes.Buffer
+	gw := gzip.NewWriter(&gzBuf)
+	if _, err := gw.Write(tarBuf.Bytes()); err != nil {
+		t.Fatalf("gzip write: %v", err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatalf("gzip close: %v", err)
+	}
+	compressed := gzBuf.Bytes()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(compressed)
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	destPath := filepath.Join(dir, "db.mmdb")
+	tgzURL := server.URL + "/archive.tar.gz"
+
+	d := &Downloader{httpClient: server.Client()}
+	err := d.DownloadFiles(context.Background(), []FileSpec{{
+		Name:           "test",
+		URLs:           []string{tgzURL},
+		Path:           destPath,
+		AutoDecompress: true,
+	}})
+	if err == nil {
+		t.Fatal("DownloadFiles() error = nil, want 'not found' error")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("DownloadFiles() error = %v, want 'not found' error", err)
+	}
+}
+
+func TestIsCompressedURL(t *testing.T) {
+	tests := []struct {
+		url  string
+		want string
+		ok   bool
+	}{
+		{url: "https://example.com/file.tar.gz", want: "targz", ok: true},
+		{url: "https://example.com/file.TAR.GZ", want: "targz", ok: true},
+		{url: "https://example.com/file.tgz", want: "targz", ok: true},
+		{url: "https://example.com/file.TGZ", want: "targz", ok: true},
+		{url: "https://example.com/file.gz", want: "gz", ok: true},
+		{url: "https://example.com/file.GZ", want: "gz", ok: true},
+		{url: "https://example.com/file.zip", want: "zip", ok: true},
+		{url: "https://example.com/file.ZIP", want: "zip", ok: true},
+		{url: "https://example.com/file.mmdb", want: "", ok: false},
+		{url: "https://example.com/file.xdb", want: "", ok: false},
+		{url: "https://example.com/file.tar.gz?query=1", want: "", ok: false},
+	}
+	for _, tt := range tests {
+		got, ok := isCompressedURL(tt.url)
+		if got != tt.want || ok != tt.ok {
+			t.Errorf("isCompressedURL(%q) = (%q, %v), want (%q, %v)", tt.url, got, ok, tt.want, tt.ok)
+		}
+	}
+}
+
+func TestIsCompressedURL_TarGzBeforeGz(t *testing.T) {
+	// ".tar.gz" must match as "targz", not "gz"
+	got, ok := isCompressedURL("https://example.com/data.tar.gz")
+	if !ok || got != "targz" {
+		t.Fatalf("isCompressedURL(tar.gz) = (%q, %v), want (targz, true)", got, ok)
 	}
 }

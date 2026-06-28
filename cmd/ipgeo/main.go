@@ -10,11 +10,17 @@ import (
 )
 
 func main() {
+	code := run()
+	os.Exit(code)
+}
+
+func run() int {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	if err := cmd.Execute(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }

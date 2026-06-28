@@ -57,7 +57,7 @@ func processFiles(ctx context.Context, cfg *config.Config, files []sources.File)
 
 	specs := make([]downloader.FileSpec, len(files))
 	for i, f := range files {
-		specs[i] = downloader.FileSpec{Name: f.Name, Path: f.Path, URLs: f.URLs}
+		specs[i] = downloader.FileSpec{Name: f.Name, Path: f.Path, URLs: f.URLs, AutoDecompress: true}
 		specs[i].URLs = make([]string, len(f.URLs))
 		for j, u := range f.URLs {
 			specs[i].URLs[j] = r.Replace(u)
