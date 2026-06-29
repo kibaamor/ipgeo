@@ -82,6 +82,9 @@ sources:
     companion_filename: test-v6.xdb
     companion_urls:
       - https://example.com/test-v6.xdb
+updater:
+  release_urls:
+    - https://example.com/releases/latest
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}

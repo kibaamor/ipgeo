@@ -5,7 +5,8 @@
     "description": "Configuration file for ipgeo — the IP geolocation CLI tool. Place this file at $IPGEO_HOME/config.yaml (default: ~/.config/ipgeo/config.yaml). VS Code and yaml-language-server users: add '# yaml-language-server: $schema=https://raw.githubusercontent.com/kibaamor/ipgeo/main/cmd/ipgeo/doc/config.schema.json' to the top of your config.yaml for full IntelliSense support.",
     "type": "object",
     "required": [
-        "sources"
+        "sources",
+        "updater"
     ],
     "additionalProperties": false,
     "properties": {
@@ -172,6 +173,9 @@
             "title": "Updater Config",
             "description": "Settings for the CLI upgrade command ('ipgeo upgrade').",
             "type": "object",
+            "required": [
+                "release_urls"
+            ],
             "additionalProperties": false,
             "properties": {
                 "release_urls": {
@@ -185,8 +189,7 @@
                     "minItems": 1,
                     "examples": [
                         [
-                            "https://api.github.com/repos/kibaamor/ipgeo/releases/latest",
-                            "https://gh-proxy.com/https://api.github.com/repos/kibaamor/ipgeo/releases/latest"
+                            "https://api.github.com/repos/kibaamor/ipgeo/releases/latest"
                         ]
                     ]
                 }

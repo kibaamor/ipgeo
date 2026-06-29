@@ -203,6 +203,9 @@ func (c *Config) validate() error {
 			}
 		}
 	}
+	if len(c.Updater.ReleaseURLs) == 0 {
+		return errors.New("config updater.release_urls must contain at least one URL")
+	}
 	return nil
 }
 

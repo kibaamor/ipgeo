@@ -236,7 +236,7 @@ func (d *Downloader) downloadOne(ctx context.Context, resp *http.Response, destP
 		return err
 	}
 
-	err = os.Rename(tmpPath, destPath)
+	err = replaceFile(tmpPath, destPath)
 	_ = os.Remove(tmpPath)
 
 	if err != nil {
@@ -348,18 +348,36 @@ func (d *Downloader) downloadAndDecompress(ctx context.Context, resp *http.Respo
 const maxDecompressedSize int64 = 5 << 30 // 5 GiB
 
 func writeFile(src io.Reader, destPath string) error {
-	f, err := os.Create(destPath)
+	tmpFile, err := os.CreateTemp(filepath.Dir(destPath), "ipgeo-decompress-*")
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
-	_, err = io.CopyN(f, src, maxDecompressedSize+1)
-	if err == nil {
+	tmpPath := tmpFile.Name()
+	keep := false
+	defer func() {
+		_ = tmpFile.Close()
+		if !keep {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	written, err := io.CopyN(tmpFile, src, maxDecompressedSize+1)
+	if err == nil || written > maxDecompressedSize {
 		return fmt.Errorf("decompressed file exceeds %d bytes", maxDecompressedSize)
 	}
 	if !errors.Is(err, io.EOF) {
 		return err
 	}
+	if err := tmpFile.Chmod(0o644); err != nil {
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("close decompressed file: %w", err)
+	}
+	if err := replaceFile(tmpPath, destPath); err != nil {
+		return err
+	}
+	keep = true
 	return nil
 }
 

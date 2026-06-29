@@ -51,4 +51,3 @@ updater:
   # GitHub API URLs used by `ipgeo upgrade` to check for the latest release.
   release_urls:
     - https://api.github.com/repos/kibaamor/ipgeo/releases/latest
-    - https://gh-proxy.com/https://api.github.com/repos/kibaamor/ipgeo/releases/latest
