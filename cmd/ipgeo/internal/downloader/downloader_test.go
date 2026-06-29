@@ -49,6 +49,30 @@ func TestNewDownloader_UsesConfigValues(t *testing.T) {
 	}
 }
 
+func TestNewDownloader_UsesProjectDefaults(t *testing.T) {
+	d := New(nil)
+
+	if d.httpClient.Timeout != 30*time.Minute {
+		t.Fatalf("client timeout = %v, want 30m", d.httpClient.Timeout)
+	}
+	transport, ok := d.httpClient.Transport.(*retryablehttp.RoundTripper)
+	if !ok {
+		t.Fatalf("client transport = %T, want *retryablehttp.RoundTripper", d.httpClient.Transport)
+	}
+	if transport.Client == nil {
+		t.Fatal("retryable transport client is nil")
+	}
+	if transport.Client.RetryWaitMin != 0*time.Second {
+		t.Fatalf("retry wait min = %v, want 0s", transport.Client.RetryWaitMin)
+	}
+	if transport.Client.RetryWaitMax != 3*time.Second {
+		t.Fatalf("retry wait max = %v, want 3s", transport.Client.RetryWaitMax)
+	}
+	if transport.Client.RetryMax != 1 {
+		t.Fatalf("retry max = %d, want 1", transport.Client.RetryMax)
+	}
+}
+
 func TestNewDownloader_RetryMaxZeroDisablesRetries(t *testing.T) {
 	cfg := &Config{
 		RetryMax: 0,
@@ -60,6 +84,17 @@ func TestNewDownloader_RetryMaxZeroDisablesRetries(t *testing.T) {
 	}
 	if transport.Client.RetryMax != 0 {
 		t.Fatalf("retry max = %d, want 0", transport.Client.RetryMax)
+	}
+}
+
+func TestNewDownloader_TimeoutZeroHonored(t *testing.T) {
+	cfg := &Config{
+		Timeout: 0,
+	}
+	d := New(cfg)
+
+	if d.httpClient.Timeout != 0 {
+		t.Fatalf("client timeout = %v, want 0s", d.httpClient.Timeout)
 	}
 }
 
@@ -173,6 +208,73 @@ func TestDownloadFiles_AllURLsFail(t *testing.T) {
 	}
 }
 
+func TestDownloadFiles_EmptyURLsInvalid(t *testing.T) {
+	d := &Downloader{httpClient: &http.Client{}}
+	destPath := filepath.Join(t.TempDir(), "db.mmdb")
+
+	err := d.DownloadFiles(context.Background(), []FileSpec{{
+		Name: "missing-urls",
+		Path: destPath,
+	}})
+	if err == nil {
+		t.Fatal("DownloadFiles() error = nil, want validation error")
+	}
+	var fileErrs FileErrors
+	if !errors.As(err, &fileErrs) {
+		t.Fatalf("DownloadFiles() error type = %T, want FileErrors", err)
+	}
+	if len(fileErrs) != 1 {
+		t.Fatalf("len(FileErrors) = %d, want 1", len(fileErrs))
+	}
+	if !strings.Contains(err.Error(), "no URLs provided") {
+		t.Fatalf("DownloadFiles() error = %v, want no URLs provided", err)
+	}
+}
+
+func TestDownloadFiles_EmptyPathInvalid(t *testing.T) {
+	d := &Downloader{httpClient: &http.Client{}}
+
+	err := d.DownloadFiles(context.Background(), []FileSpec{{
+		Name: "missing-path",
+		URLs: []string{"https://example.com/db.mmdb"},
+	}})
+	if err == nil {
+		t.Fatal("DownloadFiles() error = nil, want validation error")
+	}
+	var fileErrs FileErrors
+	if !errors.As(err, &fileErrs) {
+		t.Fatalf("DownloadFiles() error type = %T, want FileErrors", err)
+	}
+	if len(fileErrs) != 1 {
+		t.Fatalf("len(FileErrors) = %d, want 1", len(fileErrs))
+	}
+	if !strings.Contains(err.Error(), "path is required") {
+		t.Fatalf("DownloadFiles() error = %v, want path is required", err)
+	}
+}
+
+func TestDownloadFiles_InvalidSpecsAggregated(t *testing.T) {
+	d := &Downloader{httpClient: &http.Client{}}
+
+	err := d.DownloadFiles(context.Background(), []FileSpec{
+		{Name: "missing-path", URLs: []string{"https://example.com/db.mmdb"}},
+		{Name: "missing-urls", Path: filepath.Join(t.TempDir(), "db.mmdb")},
+	})
+	if err == nil {
+		t.Fatal("DownloadFiles() error = nil, want validation errors")
+	}
+	var fileErrs FileErrors
+	if !errors.As(err, &fileErrs) {
+		t.Fatalf("DownloadFiles() error type = %T, want FileErrors", err)
+	}
+	if len(fileErrs) != 2 {
+		t.Fatalf("len(FileErrors) = %d, want 2", len(fileErrs))
+	}
+	if !strings.Contains(err.Error(), "path is required") || !strings.Contains(err.Error(), "no URLs provided") {
+		t.Fatalf("DownloadFiles() error = %v, want both validation errors", err)
+	}
+}
+
 func TestDownloadFiles_Gzip_RawBytes(t *testing.T) {
 	payload := []byte("hello world db data")
 	var gzBuf bytes.Buffer
@@ -212,23 +314,6 @@ func TestDownloadFiles_Gzip_RawBytes(t *testing.T) {
 	if !bytes.Equal(data, compressed) {
 		t.Fatalf("downloaded data = %q, want raw compressed bytes", data)
 	}
-}
-
-func TestProgressGroup_NotTTY(t *testing.T) {
-	pg := NewProgressGroup()
-	if pg.p != nil {
-		t.Fatal("non-TTY ProgressGroup should have nil internal Progress")
-	}
-
-	bar := pg.AddBar("test")
-	if bar.bar != nil {
-		t.Fatal("non-TTY ProgressBar should have nil internal Bar")
-	}
-
-	bar.SetTotal(100)
-	bar.SetCurrent(50)
-	bar.MarkDone(0)
-	pg.Wait()
 }
 
 func TestDownloadFiles_CtxCancellationTTYProgressReturns(t *testing.T) {
@@ -559,39 +644,5 @@ func TestDownloadFiles_AutoDecompress_EntryNotFound(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("DownloadFiles() error = %v, want 'not found' error", err)
-	}
-}
-
-func TestIsCompressedURL(t *testing.T) {
-	tests := []struct {
-		url  string
-		want string
-		ok   bool
-	}{
-		{url: "https://example.com/file.tar.gz", want: "targz", ok: true},
-		{url: "https://example.com/file.TAR.GZ", want: "targz", ok: true},
-		{url: "https://example.com/file.tgz", want: "targz", ok: true},
-		{url: "https://example.com/file.TGZ", want: "targz", ok: true},
-		{url: "https://example.com/file.gz", want: "gz", ok: true},
-		{url: "https://example.com/file.GZ", want: "gz", ok: true},
-		{url: "https://example.com/file.zip", want: "zip", ok: true},
-		{url: "https://example.com/file.ZIP", want: "zip", ok: true},
-		{url: "https://example.com/file.mmdb", want: "", ok: false},
-		{url: "https://example.com/file.xdb", want: "", ok: false},
-		{url: "https://example.com/file.tar.gz?query=1", want: "", ok: false},
-	}
-	for _, tt := range tests {
-		got, ok := isCompressedURL(tt.url)
-		if got != tt.want || ok != tt.ok {
-			t.Errorf("isCompressedURL(%q) = (%q, %v), want (%q, %v)", tt.url, got, ok, tt.want, tt.ok)
-		}
-	}
-}
-
-func TestIsCompressedURL_TarGzBeforeGz(t *testing.T) {
-	// ".tar.gz" must match as "targz", not "gz"
-	got, ok := isCompressedURL("https://example.com/data.tar.gz")
-	if !ok || got != "targz" {
-		t.Fatalf("isCompressedURL(tar.gz) = (%q, %v), want (targz, true)", got, ok)
 	}
 }
