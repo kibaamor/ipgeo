@@ -48,6 +48,10 @@ func SelfUpdate(ctx context.Context, cfg *config.Config, currentVersion string) 
 	}
 	defer func() { _ = os.RemoveAll(filepath.Dir(extractedPath)) }()
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	if err := os.Chmod(extractedPath, 0o755); err != nil {
 		return fmt.Errorf("chmod: %w", err)
 	}
@@ -116,6 +120,10 @@ func downloadBinary(ctx context.Context, d *downloader.Downloader, assetURL, ass
 	extractedPath, err := extractBinary(archivePath, assetName, "ipgeo")
 	if err != nil {
 		return "", fmt.Errorf("extract binary: %w", err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
 
 	return extractedPath, nil

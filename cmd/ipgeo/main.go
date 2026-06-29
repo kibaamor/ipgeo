@@ -15,8 +15,12 @@ func main() {
 }
 
 func run() int {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
 
 	if err := cmd.Execute(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)

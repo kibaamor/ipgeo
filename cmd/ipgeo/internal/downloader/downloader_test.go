@@ -231,6 +231,45 @@ func TestProgressGroup_NotTTY(t *testing.T) {
 	pg.Wait()
 }
 
+func TestDownloadFiles_CtxCancellationTTYProgressReturns(t *testing.T) {
+	oldTTY := isTTY
+	isTTY = true
+	t.Cleanup(func() { isTTY = oldTTY })
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	destPath := filepath.Join(dir, "db.mmdb")
+	d := &Downloader{httpClient: server.Client()}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- d.DownloadFiles(ctx, []FileSpec{{
+			Name: "cancel-test",
+			URLs: []string{server.URL},
+			Path: destPath,
+		}})
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("DownloadFiles() error = nil, want context error")
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("DownloadFiles() error = %v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("DownloadFiles() did not return after context cancellation")
+	}
+}
+
 func TestDownloadFiles_CtxCancellation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(5 * time.Second)

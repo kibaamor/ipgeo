@@ -180,16 +180,19 @@ func (d *Downloader) DownloadFiles(ctx context.Context, files []FileSpec) error 
 }
 
 func (d *Downloader) downloadFile(ctx context.Context, pg *ProgressGroup, f FileSpec) error {
-	bar := pg.AddBar(f.Name)
 	var lastErr error
 	//nolint:bodyclose // callees close resp.Body.
 	for _, url := range f.URLs {
 		resp, err := d.doRequest(ctx, url)
 		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			lastErr = err
 			continue
 		}
 
+		bar := pg.AddBar(f.Name)
 		if dtype, ok := isCompressedURL(url); f.AutoDecompress && ok {
 			lastErr = d.downloadAndDecompress(ctx, resp, f.Path, dtype, bar)
 		} else {
@@ -201,6 +204,9 @@ func (d *Downloader) downloadFile(ctx context.Context, pg *ProgressGroup, f File
 		}
 
 		bar.Abort()
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 	}
 	return lastErr
 }
