@@ -5,28 +5,25 @@ import (
 	"testing"
 )
 
-func TestOption_KnownTypes(t *testing.T) {
+func TestCreator_KnownTypes(t *testing.T) {
 	for _, sourceType := range []string{"mmdb", "ipdb", "xdb", "ip2location"} {
 		t.Run(sourceType, func(t *testing.T) {
-			opt, err := Option(Entry{Type: sourceType, Name: "test", Filename: "test.db"}, func(filename string) string {
+			_, err := Creator(Entry{Type: sourceType, Name: "test", Filename: "test.db"}, func(filename string) string {
 				return filename
 			})
 			if err != nil {
-				t.Fatalf("Option() error: %v", err)
-			}
-			if opt == nil {
-				t.Fatal("Option() returned nil option")
+				t.Fatalf("Creator() error: %v", err)
 			}
 		})
 	}
 }
 
-func TestOption_UnknownType(t *testing.T) {
-	_, err := Option(Entry{Type: "unknown", Name: "test", Filename: "test.db"}, func(filename string) string {
+func TestCreator_UnknownType(t *testing.T) {
+	_, err := Creator(Entry{Type: "unknown", Name: "test", Filename: "test.db"}, func(filename string) string {
 		return filename
 	})
 	if err == nil {
-		t.Fatal("Option() error = nil")
+		t.Fatal("Creator() error = nil")
 	}
 }
 

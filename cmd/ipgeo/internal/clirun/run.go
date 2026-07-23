@@ -111,9 +111,9 @@ func loadSources(ctx context.Context, cfg *config.Config, sourceName string) (*i
 		return nil, err
 	}
 
-	opts, err := sources.Options(selected, cfg.SourcePath)
+	creators, err := sources.Creators(selected, cfg.SourcePath)
 	if err != nil {
 		return nil, err
 	}
-	return ipgeo.Open(opts...)
+	return ipgeo.Open(creators...)
 }

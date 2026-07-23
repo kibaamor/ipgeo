@@ -58,19 +58,19 @@ func Select(entries []Entry, sourceName string) ([]Entry, error) {
 	return nil, fmt.Errorf("source %q not found; run 'ipgeo info' to list available sources", sourceName)
 }
 
-func Options(entries []Entry, sourcePath func(string) string) ([]ipgeo.Option, error) {
-	opts := make([]ipgeo.Option, 0, len(entries))
+func Creators(entries []Entry, sourcePath func(string) string) ([]ipgeo.SourceCreator, error) {
+	creators := make([]ipgeo.SourceCreator, 0, len(entries))
 	for _, entry := range entries {
-		opt, err := Option(entry, sourcePath)
+		creator, err := Creator(entry, sourcePath)
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, opt)
+		creators = append(creators, creator)
 	}
-	return opts, nil
+	return creators, nil
 }
 
-func Option(entry Entry, sourcePath func(string) string) (ipgeo.Option, error) {
+func Creator(entry Entry, sourcePath func(string) string) (ipgeo.SourceCreator, error) {
 	path := sourcePath(entry.Filename)
 	companionPath := ""
 	if entry.CompanionFilename != "" {
@@ -78,15 +78,15 @@ func Option(entry Entry, sourcePath func(string) string) (ipgeo.Option, error) {
 	}
 	switch entry.Type {
 	case "mmdb":
-		return ipgeo.WithMMDB(entry.Name, path, companionPath), nil
+		return ipgeo.MMDB(entry.Name, path, companionPath).Decorate(ipgeo.Singleflight()), nil
 	case "ipdb":
-		return ipgeo.WithIPDB(entry.Name, path), nil
+		return ipgeo.IPDB(entry.Name, path).Decorate(ipgeo.Singleflight()), nil
 	case "xdb":
-		return ipgeo.WithXDB(entry.Name, path, companionPath), nil
+		return ipgeo.XDB(entry.Name, path, companionPath).Decorate(ipgeo.Singleflight()), nil
 	case "ip2location":
-		return ipgeo.WithIP2Location(entry.Name, path), nil
+		return ipgeo.IP2Location(entry.Name, path).Decorate(ipgeo.Singleflight()), nil
 	default:
-		return nil, fmt.Errorf("configure source %s: unknown source type: %s", entry.Name, entry.Type)
+		return ipgeo.SourceCreator{}, fmt.Errorf("configure source %s: unknown source type: %s", entry.Name, entry.Type)
 	}
 }
 
