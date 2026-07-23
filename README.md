@@ -83,7 +83,8 @@ go get github.com/kibaamor/ipgeo
 
 ### Usage
 
-Open a client with one or more source options, then call `Lookup`.
+Build a source with `MMDB`, `IPDB`, `XDB`, `IP2Location`, or `Wrap`, decorate
+it with `Singleflight` and/or `Cache`, then open a client.
 
 ```go
 package main
@@ -98,8 +99,9 @@ import (
 
 func main() {
 	client, err := ipgeo.Open(
-		ipgeo.WithMMDB("GeoLite2", "GeoLite2-City.mmdb", "GeoLite2-ASN.mmdb"),
-		ipgeo.WithCache(1024, 0, 0),
+		ipgeo.MMDB("GeoLite2", "GeoLite2-City.mmdb", "GeoLite2-ASN.mmdb").
+			Decorate(ipgeo.Singleflight()).
+			Decorate(ipgeo.Cache(1024, 0, 0)),
 	)
 	if err != nil {
 		panic(err)
@@ -119,13 +121,18 @@ func main() {
 }
 ```
 
-Supported built-in source options:
+Supported built-in source constructors:
 
-- `WithMMDB` for MaxMind DB files, with an optional companion MMDB.
-- `WithIPDB` for IPIP.net IPDB files.
-- `WithXDB` for ip2region XDB files.
-- `WithIP2Location` for IP2Location BIN files.
-- `WithSource` for custom implementations.
+- `MMDB` for MaxMind DB files, with an optional companion MMDB.
+- `IPDB` for IPIP.net IPDB files.
+- `XDB` for ip2region XDB files.
+- `IP2Location` for IP2Location BIN files.
+- `Wrap` for custom `Source` implementations.
+
+Built-in decorators (applied in call order; first added is innermost):
+
+- `Singleflight` deduplicates concurrent lookups for the same address.
+- `Cache` caches results (sliding TTL) and optionally errors (fixed TTL).
 
 Lookup methods (each accepts a `context.Context` for cancellation/timeout):
 
