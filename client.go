@@ -38,22 +38,24 @@ func Open(creators ...SourceCreator) (*Client, error) {
 		var err error
 		sources[i], err = c.Create()
 		if err != nil {
-			for j := range i {
-				_ = sources[j].Close()
-			}
+			closeSources(sources[:i])
 			return nil, err
 		}
 		name := sources[i].Name()
 		if _, exists := sourceByName[name]; exists {
-			for j := range i + 1 {
-				_ = sources[j].Close()
-			}
+			closeSources(sources[:i+1])
 			return nil, fmt.Errorf("%w: %q", ErrDuplicateSource, name)
 		}
 		sourceByName[name] = sources[i]
 	}
 
 	return &Client{sources: sources, sourceByName: sourceByName}, nil
+}
+
+func closeSources(sources []Source) {
+	for _, s := range sources {
+		_ = s.Close()
+	}
 }
 
 // SourceNames returns the names of all configured sources in order.
