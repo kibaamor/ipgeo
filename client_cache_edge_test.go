@@ -1,6 +1,7 @@
 package ipgeo
 
 import (
+	"context"
 	"errors"
 	"net/netip"
 	"strings"
@@ -93,7 +94,7 @@ func TestSingleflightSourceUnexpectedSharedType(t *testing.T) {
 	<-inFlight
 
 	timer := time.AfterFunc(50*time.Millisecond, func() { close(release) })
-	_, err := sf.Lookup(addr)
+	_, err := sf.Lookup(context.Background(), addr)
 	if !timer.Stop() {
 		<-firstDone
 	} else {
@@ -114,7 +115,7 @@ func TestSingleflightSourcePropagatesLookupAndCloseErrors(t *testing.T) {
 	src.addErr(lookupErr)
 	sf := newSingleflightSource(src)
 
-	_, err := sf.Lookup(testAddr)
+	_, err := sf.Lookup(context.Background(), testAddr)
 	if !errors.Is(err, lookupErr) {
 		t.Fatalf("Lookup() error = %v, want lookupErr", err)
 	}

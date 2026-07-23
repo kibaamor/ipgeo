@@ -2,6 +2,7 @@ package clirun
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/netip"
@@ -17,7 +18,7 @@ func TestStreamInput_ProcessesInputWithInlineRenderer(t *testing.T) {
 	addr := netip.MustParseAddr("1.2.3.4")
 	result := ipgeo.NewResult(addr, "db", "CN", "China", "", "", "", 0)
 
-	err := streamInput(strings.NewReader("client=1.2.3.4"), output.NewInlineRenderer(&buf), func(got netip.Addr) (*ipgeo.Result, error) {
+	err := streamInput(context.Background(), strings.NewReader("client=1.2.3.4"), output.NewInlineRenderer(&buf), func(_ context.Context, got netip.Addr) (*ipgeo.Result, error) {
 		if got == addr {
 			return &result, nil
 		}
@@ -37,7 +38,7 @@ func TestStreamInput_FlushesAfterEachRead(t *testing.T) {
 	renderer := &flushProbeRenderer{}
 	reader := &flushProbeReader{renderer: renderer, data: []byte("client=1.2.3.4\n")}
 
-	err := streamInput(reader, renderer, func(got netip.Addr) (*ipgeo.Result, error) {
+	err := streamInput(context.Background(), reader, renderer, func(_ context.Context, got netip.Addr) (*ipgeo.Result, error) {
 		if got == addr {
 			return &result, nil
 		}
@@ -55,7 +56,7 @@ func TestStreamInput_PropagatesLookupError(t *testing.T) {
 	lookupErr := errors.New("lookup failed")
 	var buf bytes.Buffer
 
-	err := streamInput(strings.NewReader("before 1.2.3.4 after 2.3.4.5"), output.NewInlineRenderer(&buf), func(netip.Addr) (*ipgeo.Result, error) {
+	err := streamInput(context.Background(), strings.NewReader("before 1.2.3.4 after 2.3.4.5"), output.NewInlineRenderer(&buf), func(_ context.Context, _ netip.Addr) (*ipgeo.Result, error) {
 		return nil, lookupErr
 	})
 	if !errors.Is(err, lookupErr) {
@@ -73,7 +74,7 @@ func TestStreamInput_FlushesBufferedOutputAfterEOFLookupError(t *testing.T) {
 	second := netip.MustParseAddr("2.3.4.5")
 	result := ipgeo.NewResult(first, "db", "CN", "China", "", "", "", 0)
 
-	err := streamInput(strings.NewReader("first 1.2.3.4 second 2.3.4.5"), output.NewStructuredRenderer(&buf), func(addr netip.Addr) (*ipgeo.Result, error) {
+	err := streamInput(context.Background(), strings.NewReader("first 1.2.3.4 second 2.3.4.5"), output.NewStructuredRenderer(&buf), func(_ context.Context, addr netip.Addr) (*ipgeo.Result, error) {
 		switch addr {
 		case first:
 			return &result, nil
@@ -95,7 +96,7 @@ func TestStreamInput_FlushesTrailingInputAfterReadError(t *testing.T) {
 	readErr := errors.New("read failed")
 	var buf bytes.Buffer
 
-	err := streamInput(&errAfterBytesReader{data: []byte("client=1.2.3.4"), err: readErr}, output.NewInlineRenderer(&buf), func(netip.Addr) (*ipgeo.Result, error) {
+	err := streamInput(context.Background(), &errAfterBytesReader{data: []byte("client=1.2.3.4"), err: readErr}, output.NewInlineRenderer(&buf), func(_ context.Context, _ netip.Addr) (*ipgeo.Result, error) {
 		return nil, nil
 	})
 	if !errors.Is(err, readErr) {

@@ -1,6 +1,7 @@
 package ipgeo
 
 import (
+	"context"
 	"errors"
 	"net/netip"
 	"strconv"
@@ -54,7 +55,7 @@ func (i *ipdbSource) Name() string { return i.name }
 
 func (i *ipdbSource) Close() error { return nil }
 
-func (i *ipdbSource) Lookup(addr netip.Addr) (*Result, error) {
+func (i *ipdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
 	info, err := i.db.FindInfo(addr.String(), i.lang)
 	if err != nil {
 		if errors.Is(err, ipdb.ErrDataNotExists) {

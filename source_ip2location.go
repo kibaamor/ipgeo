@@ -1,6 +1,7 @@
 package ipgeo
 
 import (
+	"context"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -48,7 +49,7 @@ func cleanIP2LocationField(s string) string {
 	return s
 }
 
-func (s *ip2locationSource) Lookup(addr netip.Addr) (*Result, error) {
+func (s *ip2locationSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
 	rec, err := s.db.Get_all(addr.String())
 	if err != nil {
 		return nil, err

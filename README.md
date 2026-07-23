@@ -95,6 +95,7 @@ Open a client with one or more source options, then call `Lookup`.
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
 
@@ -111,7 +112,7 @@ func main() {
 	}
 	defer client.Close()
 
-	result, err := client.Lookup(netip.MustParseAddr("1.1.1.1"))
+	result, err := client.Lookup(context.Background(), netip.MustParseAddr("1.1.1.1"))
 	if err != nil {
 		panic(err)
 	}
@@ -132,11 +133,15 @@ Supported built-in source options:
 - `WithIP2Location` for IP2Location BIN files.
 - `WithSource` for custom implementations.
 
-Lookup methods:
+Lookup methods (each accepts a `context.Context` for cancellation/timeout):
 
 - `Lookup` queries sources in order and returns the first result.
 - `LookupAll` returns every result found.
 - `LookupFrom` queries one named source.
+
+A `Client` is safe for concurrent use. `Close` is idempotent. Common failures
+are exported as sentinel errors (`ErrNoSources`, `ErrDuplicateSource`,
+`ErrSourceNotConfigured`).
 
 ## Issues
 

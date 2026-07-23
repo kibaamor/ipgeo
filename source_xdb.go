@@ -1,6 +1,7 @@
 package ipgeo
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -49,7 +50,7 @@ func cleanXDBField(s string) string {
 	return s
 }
 
-func (d *xdbSource) Lookup(addr netip.Addr) (*Result, error) {
+func (d *xdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
 	info, err := d.searcher.Search(addr.String())
 	if err != nil {
 		return nil, err

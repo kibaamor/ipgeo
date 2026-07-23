@@ -46,17 +46,17 @@ func Run(ctx context.Context, opts Options) (runErr error) {
 		return err
 	}
 
-	err = streamInput(in, renderer, svc.Lookup)
+	err = streamInput(ctx, in, renderer, svc.Lookup)
 	return errors.Join(err, closer.Close())
 }
 
-func streamInput(in io.Reader, renderer output.Renderer, lookup func(netip.Addr) (*ipgeo.Result, error)) (runErr error) {
+func streamInput(ctx context.Context, in io.Reader, renderer output.Renderer, lookup func(context.Context, netip.Addr) (*ipgeo.Result, error)) (runErr error) {
 	var streamErr error
 	streamer := ipstream.NewStreamer(ipstream.HandleFunc(func(raw []byte, addr netip.Addr) {
 		if streamErr != nil {
 			return
 		}
-		streamErr = handleSegment(renderer, lookup, raw, addr)
+		streamErr = handleSegment(ctx, renderer, lookup, raw, addr)
 	}))
 	defer func() {
 		runErr = errors.Join(runErr, renderer.Flush())
@@ -88,14 +88,14 @@ func streamInput(in io.Reader, renderer output.Renderer, lookup func(netip.Addr)
 	}
 }
 
-func handleSegment(renderer output.Renderer, lookup func(netip.Addr) (*ipgeo.Result, error), raw []byte, addr netip.Addr) error {
+func handleSegment(ctx context.Context, renderer output.Renderer, lookup func(context.Context, netip.Addr) (*ipgeo.Result, error), raw []byte, addr netip.Addr) error {
 	if err := renderer.WriteRaw(raw); err != nil {
 		return err
 	}
 	if !addr.IsValid() {
 		return nil
 	}
-	result, err := lookup(addr.WithZone(""))
+	result, err := lookup(ctx, addr.WithZone(""))
 	if err != nil || result == nil {
 		return err
 	}

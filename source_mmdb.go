@@ -1,6 +1,7 @@
 package ipgeo
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/netip"
@@ -114,7 +115,7 @@ func addrToNetIP(addr netip.Addr) net.IP {
 	return net.IP(a[:])
 }
 
-func (m *mmdbSource) Lookup(addr netip.Addr) (*Result, error) {
+func (m *mmdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
 	ip := addrToNetIP(addr)
 
 	var record cityRecord

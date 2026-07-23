@@ -1,6 +1,7 @@
 package ipgeo
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
 
@@ -16,19 +17,24 @@ func newSingleflightSource(src Source) *singleflightSource {
 	return &singleflightSource{source: src}
 }
 
-func (s *singleflightSource) Lookup(addr netip.Addr) (*Result, error) {
+func (s *singleflightSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
 	addr = addr.Unmap()
-	v, err, _ := s.group.Do(addr.String(), func() (any, error) {
-		return s.source.Lookup(addr)
+	ch := s.group.DoChan(addr.String(), func() (any, error) {
+		return s.source.Lookup(context.Background(), addr)
 	})
-	if err != nil {
-		return nil, err
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case r := <-ch:
+		if r.Err != nil {
+			return nil, r.Err
+		}
+		result, ok := r.Val.(*Result)
+		if !ok {
+			return nil, fmt.Errorf("ipgeo: singleflight returned unexpected type %T", r.Val)
+		}
+		return result, nil
 	}
-	result, ok := v.(*Result)
-	if !ok {
-		return nil, fmt.Errorf("ipgeo: singleflight returned unexpected type %T", v)
-	}
-	return result, nil
 }
 
 func (s *singleflightSource) Name() string {

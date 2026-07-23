@@ -1,6 +1,8 @@
 package ipgeo
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"time"
@@ -36,21 +38,25 @@ func newCachedSource(src Source, maxEntries int, cacheErrorsTTL time.Duration) (
 	}, nil
 }
 
-func (s *cachedSource) Lookup(addr netip.Addr) (*Result, error) {
+func (s *cachedSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
 	addr = addr.Unmap()
 	if result, err, ok := s.lookupCache(addr); ok {
 		return result, err
 	}
 
-	result, lookupErr := s.source.Lookup(addr)
+	result, lookupErr := s.source.Lookup(ctx, addr)
 	if lookupErr != nil {
-		if s.errors != nil {
+		if s.errors != nil && !isContextError(lookupErr) {
 			s.errors.Set(addr, lookupErr, ttlcache.DefaultTTL)
 		}
 		return nil, lookupErr
 	}
 	s.cache.Set(addr, result, ttlcache.NoTTL)
 	return result, nil
+}
+
+func isContextError(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 func (s *cachedSource) lookupCache(addr netip.Addr) (*Result, error, bool) {

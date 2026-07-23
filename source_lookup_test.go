@@ -1,6 +1,7 @@
 package ipgeo
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/netip"
@@ -19,7 +20,7 @@ func TestMMDBSourceLookup(t *testing.T) {
 	companion := &fakeMMDBReader{record: cityRecord{AutonomousSystemNumber: 4134, AutonomousSystemOrganization: "ChinaNet"}}
 	src := &mmdbSource{name: "mmdb", db: primary, companion: companion}
 
-	result, err := src.Lookup(addr)
+	result, err := src.Lookup(context.Background(), addr)
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
@@ -44,7 +45,7 @@ func TestMMDBSourceLookupErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.src.Lookup(testAddr)
+			result, err := tt.src.Lookup(context.Background(), testAddr)
 			if tt.want == nil {
 				if err != nil {
 					t.Fatalf("Lookup() error = %v, want nil", err)
@@ -101,7 +102,7 @@ func TestIPDBSourceLookup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reader := &fakeIPDBReader{info: tt.info}
 			src := &ipdbSource{name: "ipdb", db: reader, lang: "EN"}
-			result, err := src.Lookup(testAddr)
+			result, err := src.Lookup(context.Background(), testAddr)
 			if err != nil {
 				t.Fatalf("Lookup() error: %v", err)
 			}
@@ -128,7 +129,7 @@ func TestIPDBSourceLookupErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.src.Lookup(testAddr)
+			result, err := tt.src.Lookup(context.Background(), testAddr)
 			if tt.want == nil {
 				if err != nil {
 					t.Fatalf("Lookup() error = %v, want nil", err)
@@ -156,7 +157,7 @@ func TestIP2LocationSourceLookup(t *testing.T) {
 	}}
 	src := &ip2locationSource{name: "ip2location", db: reader}
 
-	result, err := src.Lookup(testAddr)
+	result, err := src.Lookup(context.Background(), testAddr)
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
@@ -186,7 +187,7 @@ func TestIP2LocationSourceLookupErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.src.Lookup(testAddr)
+			result, err := tt.src.Lookup(context.Background(), testAddr)
 			if tt.want == nil {
 				if err != nil {
 					t.Fatalf("Lookup() error = %v, want nil", err)
@@ -207,7 +208,7 @@ func TestXDBSourceLookup(t *testing.T) {
 	reader := &fakeXDBSearcher{info: "China|Beijing|Haidian|ChinaNet|CN"}
 	src := &xdbSource{name: "xdb", searcher: reader}
 
-	result, err := src.Lookup(testAddr)
+	result, err := src.Lookup(context.Background(), testAddr)
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
@@ -239,7 +240,7 @@ func TestXDBSourceLookupErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.src.Lookup(testAddr)
+			result, err := tt.src.Lookup(context.Background(), testAddr)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("Lookup() error = %v, want nil", err)

@@ -1,6 +1,7 @@
 package ipgeo
 
 import (
+	"context"
 	"errors"
 	"net/netip"
 	"sync"
@@ -32,7 +33,7 @@ func newMockSource(name string) *mockSource {
 func (m *mockSource) Name() string { return m.name }
 func (m *mockSource) Close() error { m.closed = true; return nil }
 
-func (m *mockSource) Lookup(addr netip.Addr) (*Result, error) {
+func (m *mockSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
 	if err, ok := m.err[addr]; ok {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func TestLookup_Found(t *testing.T) {
 	src.add("1.2.3.4", &Result{ip: testAddr, source: "db", country: "China"})
 	c := mustOpen(t, WithSource(src))
 
-	got, err := c.Lookup(netip.MustParseAddr("1.2.3.4"))
+	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
@@ -109,7 +110,7 @@ func TestLookup_Found(t *testing.T) {
 func TestLookup_NotFound(t *testing.T) {
 	c := mustOpen(t, WithSource(newMockSource("db")))
 
-	got, err := c.Lookup(netip.MustParseAddr("1.2.3.4"))
+	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
 		t.Fatalf("Lookup() error = %v, want nil", err)
 	}
@@ -124,7 +125,7 @@ func TestLookup_SourceError(t *testing.T) {
 	src.addErr(sentinelErr)
 	c := mustOpen(t, WithSource(src))
 
-	_, err := c.Lookup(netip.MustParseAddr("1.2.3.4"))
+	_, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -139,7 +140,7 @@ func TestLookup_FallsThrough(t *testing.T) {
 	src2.add("1.2.3.4", &Result{ip: testAddr, source: "db2", country: "US"})
 	c := mustOpen(t, WithSource(src1), WithSource(src2))
 
-	got, err := c.Lookup(netip.MustParseAddr("1.2.3.4"))
+	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
@@ -155,7 +156,7 @@ func TestLookup_IPv4MappedIPv6(t *testing.T) {
 	c := mustOpen(t, WithSource(src))
 
 	mapped := netip.MustParseAddr("::ffff:1.2.3.4")
-	got, err := c.Lookup(mapped)
+	got, err := c.Lookup(context.Background(), mapped)
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
@@ -177,9 +178,9 @@ func TestLookup_CacheHit(t *testing.T) {
 	c := mustOpen(t, WithSource(counting), WithCache(10, 0))
 
 	addr := netip.MustParseAddr("1.2.3.4")
-	_, _ = c.Lookup(addr)
-	_, _ = c.Lookup(addr)
-	_, _ = c.Lookup(addr)
+	_, _ = c.Lookup(context.Background(), addr)
+	_, _ = c.Lookup(context.Background(), addr)
+	_, _ = c.Lookup(context.Background(), addr)
 
 	if callCount != 1 {
 		t.Errorf("source called %d times, want 1 (cache should hit)", callCount)
@@ -200,7 +201,7 @@ func TestLookup_CachesNilMissFallthrough(t *testing.T) {
 	)
 
 	for range 3 {
-		got, err := c.Lookup(testAddr)
+		got, err := c.Lookup(context.Background(), testAddr)
 		if err != nil {
 			t.Fatalf("Lookup() error: %v", err)
 		}
@@ -222,9 +223,9 @@ type countingSource struct {
 	counter *int
 }
 
-func (c *countingSource) Lookup(addr netip.Addr) (*Result, error) {
+func (c *countingSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
 	*c.counter++
-	return c.Source.Lookup(addr)
+	return c.Source.Lookup(ctx, addr)
 }
 
 func TestWithCache_InvalidEntries(t *testing.T) {
@@ -248,7 +249,7 @@ func TestLookupAll_MultiSource(t *testing.T) {
 	src2.add("1.2.3.4", &Result{ip: testAddr, country: "China2"})
 	c := mustOpen(t, WithSource(src1), WithSource(src2))
 
-	results, err := c.LookupAll(testAddr)
+	results, err := c.LookupAll(context.Background(), testAddr)
 	if err != nil {
 		t.Fatalf("LookupAll() error: %v", err)
 	}
@@ -260,7 +261,7 @@ func TestLookupAll_MultiSource(t *testing.T) {
 func TestLookupAll_NoneFound(t *testing.T) {
 	c := mustOpen(t, WithSource(newMockSource("db")))
 
-	results, err := c.LookupAll(testAddr)
+	results, err := c.LookupAll(context.Background(), testAddr)
 	if err != nil {
 		t.Fatalf("LookupAll() error = %v, want nil", err)
 	}
@@ -276,7 +277,7 @@ func TestLookupAll_PartialErrors(t *testing.T) {
 	src2.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
 	c := mustOpen(t, WithSource(src1), WithSource(src2))
 
-	results, err := c.LookupAll(testAddr)
+	results, err := c.LookupAll(context.Background(), testAddr)
 	if err == nil {
 		t.Fatal("expected non-nil error from src1")
 	}
@@ -303,7 +304,7 @@ func TestLookupAll_CacheHitPerSource(t *testing.T) {
 	)
 
 	for range 2 {
-		results, err := c.LookupAll(testAddr)
+		results, err := c.LookupAll(context.Background(), testAddr)
 		if err != nil {
 			t.Fatalf("LookupAll() error: %v", err)
 		}
@@ -335,7 +336,7 @@ func TestLookupAll_CachesErrors(t *testing.T) {
 	)
 
 	for range 2 {
-		results, err := c.LookupAll(testAddr)
+		results, err := c.LookupAll(context.Background(), testAddr)
 		if !errors.Is(err, sentinelErr) {
 			t.Fatalf("err = %v, want sentinel error", err)
 		}
@@ -360,7 +361,7 @@ func TestLookupFrom_Found(t *testing.T) {
 	src2.add("1.2.3.4", &Result{ip: testAddr, country: "US"})
 	c := mustOpen(t, WithSource(src1), WithSource(src2))
 
-	got, err := c.LookupFrom("db2", testAddr)
+	got, err := c.LookupFrom(context.Background(), "db2", testAddr)
 	if err != nil {
 		t.Fatalf("LookupFrom() error: %v", err)
 	}
@@ -372,7 +373,7 @@ func TestLookupFrom_Found(t *testing.T) {
 func TestLookupFrom_UnknownSource(t *testing.T) {
 	c := mustOpen(t, WithSource(newMockSource("db")))
 
-	_, err := c.LookupFrom("nonexistent", testAddr)
+	_, err := c.LookupFrom(context.Background(), "nonexistent", testAddr)
 	if err == nil {
 		t.Fatal("expected error for unknown source")
 	}
@@ -381,7 +382,7 @@ func TestLookupFrom_UnknownSource(t *testing.T) {
 func TestLookupFrom_NotFound(t *testing.T) {
 	c := mustOpen(t, WithSource(newMockSource("db")))
 
-	got, err := c.LookupFrom("db", testAddr)
+	got, err := c.LookupFrom(context.Background(), "db", testAddr)
 	if err != nil {
 		t.Fatalf("LookupFrom() error = %v, want nil", err)
 	}
@@ -404,7 +405,7 @@ func TestLookupFrom_CacheHit(t *testing.T) {
 	)
 
 	for range 3 {
-		got, err := c.LookupFrom("db2", testAddr)
+		got, err := c.LookupFrom(context.Background(), "db2", testAddr)
 		if err != nil {
 			t.Fatalf("LookupFrom() error: %v", err)
 		}
@@ -430,7 +431,7 @@ func TestLookupFrom_DoesNotCacheErrorWithoutTTL(t *testing.T) {
 	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 0))
 
 	for range 2 {
-		_, err := c.LookupFrom("db", testAddr)
+		_, err := c.LookupFrom(context.Background(), "db", testAddr)
 		if !errors.Is(err, sentinelErr) {
 			t.Fatalf("err = %v, want sentinel error", err)
 		}
@@ -450,7 +451,7 @@ func TestLookupFrom_CachesErrorWithTTL(t *testing.T) {
 	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, time.Second))
 
 	for range 2 {
-		_, err := c.LookupFrom("db", testAddr)
+		_, err := c.LookupFrom(context.Background(), "db", testAddr)
 		if !errors.Is(err, sentinelErr) {
 			t.Fatalf("err = %v, want sentinel error", err)
 		}
@@ -472,14 +473,14 @@ func TestLookupFrom_CacheErrorExpires(t *testing.T) {
 		WithCache(10, 20*time.Millisecond),
 	)
 
-	_, _ = c.LookupFrom("db", testAddr)
-	_, _ = c.LookupFrom("db", testAddr)
+	_, _ = c.LookupFrom(context.Background(), "db", testAddr)
+	_, _ = c.LookupFrom(context.Background(), "db", testAddr)
 	if callCount != 1 {
 		t.Fatalf("source called %d times, want 1 before TTL expiry", callCount)
 	}
 
 	time.Sleep(30 * time.Millisecond)
-	_, err := c.LookupFrom("db", testAddr)
+	_, err := c.LookupFrom(context.Background(), "db", testAddr)
 	if !errors.Is(err, sentinelErr) {
 		t.Fatalf("err = %v, want sentinel error", err)
 	}
@@ -500,7 +501,7 @@ func TestLookupFrom_CacheErrorCanBeDisabled(t *testing.T) {
 	)
 
 	for range 2 {
-		_, err := c.LookupFrom("db", testAddr)
+		_, err := c.LookupFrom(context.Background(), "db", testAddr)
 		if !errors.Is(err, sentinelErr) {
 			t.Fatalf("err = %v, want sentinel error", err)
 		}
@@ -525,7 +526,7 @@ func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
 		wg.Go(func() {
 			ready.Done()
 			<-start
-			got, err := c.LookupFrom("db", testAddr)
+			got, err := c.LookupFrom(context.Background(), "db", testAddr)
 			if err != nil {
 				errs <- err
 				return
@@ -551,7 +552,7 @@ func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
 		t.Errorf("source called %d times, want 1", got)
 	}
 
-	got, err := c.LookupFrom("db", testAddr)
+	got, err := c.LookupFrom(context.Background(), "db", testAddr)
 	if err != nil {
 		t.Fatalf("LookupFrom() after singleflight error: %v", err)
 	}
@@ -577,7 +578,7 @@ func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
 		wg.Go(func() {
 			ready.Done()
 			<-start
-			got, err := c.LookupFrom("db", testAddr)
+			got, err := c.LookupFrom(context.Background(), "db", testAddr)
 			if err != nil {
 				errs <- err
 				return
@@ -603,7 +604,7 @@ func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
 		t.Errorf("source called %d times, want 1", got)
 	}
 
-	_, _ = c.LookupFrom("db", testAddr)
+	_, _ = c.LookupFrom(context.Background(), "db", testAddr)
 	if got := src.calls.Load(); got != 1 {
 		t.Errorf("source called %d times, want 1 after cache hit", got)
 	}
@@ -624,7 +625,7 @@ func TestLookupFrom_SingleflightErrorMiss(t *testing.T) {
 		wg.Go(func() {
 			ready.Done()
 			<-start
-			_, err := c.LookupFrom("db", testAddr)
+			_, err := c.LookupFrom(context.Background(), "db", testAddr)
 			if !errors.Is(err, sentinelErr) {
 				errs <- err
 			}
@@ -646,7 +647,7 @@ func TestLookupFrom_SingleflightErrorMiss(t *testing.T) {
 		t.Fatalf("source called %d times, want 1 for concurrent misses", got)
 	}
 
-	_, err := c.LookupFrom("db", testAddr)
+	_, err := c.LookupFrom(context.Background(), "db", testAddr)
 	if !errors.Is(err, sentinelErr) {
 		t.Fatalf("err = %v, want sentinel error", err)
 	}
@@ -665,7 +666,7 @@ type blockingSource struct {
 	calls   atomic.Int32
 }
 
-func newBlockingSource(name string, result *Result, err error) *blockingSource {
+func newBlockingSource(name string, result *Result, err error) *blockingSource { //nolint:unparam
 	return &blockingSource{
 		name:    name,
 		result:  result,
@@ -675,11 +676,15 @@ func newBlockingSource(name string, result *Result, err error) *blockingSource {
 	}
 }
 
-func (s *blockingSource) Lookup(netip.Addr) (*Result, error) {
+func (s *blockingSource) Lookup(ctx context.Context, _ netip.Addr) (*Result, error) {
 	s.calls.Add(1)
 	s.once.Do(func() { close(s.started) })
-	<-s.release
-	return s.result, s.err
+	select {
+	case <-s.release:
+		return s.result, s.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (s *blockingSource) Name() string { return s.name }
@@ -704,7 +709,7 @@ func TestWithCache_ValidSize(t *testing.T) {
 	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
 	c := mustOpen(t, WithCache(100, 0), WithSource(src))
 
-	_, err := c.Lookup(netip.MustParseAddr("1.2.3.4"))
+	_, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
 		t.Errorf("Lookup() error: %v", err)
 	}
@@ -759,9 +764,9 @@ func TestWithCache_EvictsCachedEntry(t *testing.T) {
 	src.add("1.1.1.1", &Result{ip: addr1, country: "A"})
 	src.add("2.2.2.2", &Result{ip: addr2, country: "B"})
 
-	_, _ = c.Lookup(addr1) // Cache addr1
-	_, _ = c.Lookup(addr2) // Cache addr2, evicts addr1
-	_, _ = c.Lookup(addr1) // Miss, calls source again
+	_, _ = c.Lookup(context.Background(), addr1) // Cache addr1
+	_, _ = c.Lookup(context.Background(), addr2) // Cache addr2, evicts addr1
+	_, _ = c.Lookup(context.Background(), addr1) // Miss, calls source again
 
 	if callCount != 3 {
 		t.Errorf("source called %d times, want 3 (cache size 1 should evict)", callCount)
@@ -805,7 +810,7 @@ func TestClose_PurgesCache(t *testing.T) {
 		t.Fatalf("cached source wraps %T, want *singleflightSource", cached.source)
 	}
 
-	_, _ = c.Lookup(netip.MustParseAddr("1.2.3.4"))
+	_, _ = c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if cached.cache.Len() != 1 {
 		t.Fatalf("cache len = %d, want 1 before Close()", cached.cache.Len())
 	}
@@ -835,10 +840,10 @@ func TestErrorCacheExpiresLazily(t *testing.T) {
 	var callCount int
 	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 20*time.Millisecond))
 
-	if _, err := c.Lookup(testAddr); !errors.Is(err, lookupErr) {
+	if _, err := c.Lookup(context.Background(), testAddr); !errors.Is(err, lookupErr) {
 		t.Fatalf("first Lookup() error = %v, want lookupErr", err)
 	}
-	if _, err := c.Lookup(testAddr); !errors.Is(err, lookupErr) {
+	if _, err := c.Lookup(context.Background(), testAddr); !errors.Is(err, lookupErr) {
 		t.Fatalf("cached Lookup() error = %v, want lookupErr", err)
 	}
 	if callCount != 1 {
@@ -846,10 +851,62 @@ func TestErrorCacheExpiresLazily(t *testing.T) {
 	}
 
 	time.Sleep(30 * time.Millisecond)
-	if _, err := c.Lookup(testAddr); !errors.Is(err, lookupErr) {
+	if _, err := c.Lookup(context.Background(), testAddr); !errors.Is(err, lookupErr) {
 		t.Fatalf("post-expiry Lookup() error = %v, want lookupErr", err)
 	}
 	if callCount != 2 {
 		t.Fatalf("source called %d times after TTL expiry, want 2", callCount)
+	}
+}
+
+// countCloseSource wraps a mock source and counts Close calls.
+type countCloseSource struct {
+	*mockSource
+	closes int
+	err    error
+}
+
+func (s *countCloseSource) Close() error {
+	s.closes++
+	return s.err
+}
+
+func TestClose_Idempotent(t *testing.T) {
+	closeErr := errors.New("close failed")
+	src := &countCloseSource{mockSource: newMockSource("db"), err: closeErr}
+	c, err := Open(WithSource(src))
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+
+	err1 := c.Close()
+	err2 := c.Close()
+	if !errors.Is(err1, closeErr) {
+		t.Fatalf("first Close() = %v, want closeErr", err1)
+	}
+	if !errors.Is(err2, closeErr) {
+		t.Errorf("second Close() = %v, want same closeErr (idempotent)", err2)
+	}
+	if src.closes != 1 {
+		t.Errorf("source closed %d times, want 1", src.closes)
+	}
+}
+
+func TestClose_ConcurrentSafe(t *testing.T) {
+	src := &countCloseSource{mockSource: newMockSource("db")}
+	c, err := Open(WithSource(src))
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+
+	const goroutines = 20
+	var wg sync.WaitGroup
+	for range goroutines {
+		wg.Go(func() { _ = c.Close() })
+	}
+	wg.Wait()
+
+	if src.closes != 1 {
+		t.Errorf("source closed %d times, want 1 under concurrent Close", src.closes)
 	}
 }
