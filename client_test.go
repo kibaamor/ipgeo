@@ -175,7 +175,7 @@ func TestLookup_CacheHit(t *testing.T) {
 
 	// Wrap to count calls
 	counting := &countingSource{Source: src, counter: &callCount}
-	c := mustOpen(t, WithSource(counting), WithCache(10, 0))
+	c := mustOpen(t, WithSource(counting), WithCache(10, 0, 0))
 
 	addr := netip.MustParseAddr("1.2.3.4")
 	_, _ = c.Lookup(context.Background(), addr)
@@ -197,7 +197,7 @@ func TestLookup_CachesNilMissFallthrough(t *testing.T) {
 	c := mustOpen(t,
 		WithSource(&countingSource{Source: src1, counter: &src1Count}),
 		WithSource(&countingSource{Source: src2, counter: &src2Count}),
-		WithCache(10, time.Second),
+		WithCache(10, 0, time.Second),
 	)
 
 	for range 3 {
@@ -226,18 +226,6 @@ type countingSource struct {
 func (c *countingSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
 	*c.counter++
 	return c.Source.Lookup(ctx, addr)
-}
-
-func TestWithCache_InvalidEntries(t *testing.T) {
-	src := newMockSource("db")
-	_, err := Open(WithSource(src), WithCache(0, 0))
-	if err == nil {
-		t.Fatal("expected error for maxEntries=0")
-	}
-	_, err = Open(WithSource(src), WithCache(-1, 0))
-	if err == nil {
-		t.Fatal("expected error for maxEntries=-1")
-	}
 }
 
 // ---- LookupAll ----
@@ -300,7 +288,7 @@ func TestLookupAll_CacheHitPerSource(t *testing.T) {
 	c := mustOpen(t,
 		WithSource(&countingSource{Source: src1, counter: &src1Count}),
 		WithSource(&countingSource{Source: src2, counter: &src2Count}),
-		WithCache(10, time.Second),
+		WithCache(10, 0, time.Second),
 	)
 
 	for range 2 {
@@ -332,7 +320,7 @@ func TestLookupAll_CachesErrors(t *testing.T) {
 	c := mustOpen(t,
 		WithSource(&countingSource{Source: src1, counter: &src1Count}),
 		WithSource(&countingSource{Source: src2, counter: &src2Count}),
-		WithCache(10, time.Second),
+		WithCache(10, 0, time.Second),
 	)
 
 	for range 2 {
@@ -401,7 +389,7 @@ func TestLookupFrom_CacheHit(t *testing.T) {
 	c := mustOpen(t,
 		WithSource(&countingSource{Source: src1, counter: &src1Count}),
 		WithSource(&countingSource{Source: src2, counter: &src2Count}),
-		WithCache(10, 0),
+		WithCache(10, 0, 0),
 	)
 
 	for range 3 {
@@ -428,7 +416,7 @@ func TestLookupFrom_DoesNotCacheErrorWithoutTTL(t *testing.T) {
 	src.addErr(sentinelErr)
 	callCount := 0
 
-	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 0))
+	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 0, 0))
 
 	for range 2 {
 		_, err := c.LookupFrom(context.Background(), "db", testAddr)
@@ -448,7 +436,7 @@ func TestLookupFrom_CachesErrorWithTTL(t *testing.T) {
 	src.addErr(sentinelErr)
 	callCount := 0
 
-	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, time.Second))
+	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 0, time.Second))
 
 	for range 2 {
 		_, err := c.LookupFrom(context.Background(), "db", testAddr)
@@ -470,7 +458,7 @@ func TestLookupFrom_CacheErrorExpires(t *testing.T) {
 
 	c := mustOpen(t,
 		WithSource(&countingSource{Source: src, counter: &callCount}),
-		WithCache(10, 20*time.Millisecond),
+		WithCache(10, 0, 20*time.Millisecond),
 	)
 
 	_, _ = c.LookupFrom(context.Background(), "db", testAddr)
@@ -497,7 +485,7 @@ func TestLookupFrom_CacheErrorCanBeDisabled(t *testing.T) {
 
 	c := mustOpen(t,
 		WithSource(&countingSource{Source: src, counter: &callCount}),
-		WithCache(10, 0),
+		WithCache(10, 0, 0),
 	)
 
 	for range 2 {
@@ -566,7 +554,7 @@ func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
 
 func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
 	src := newBlockingSource("db", &Result{ip: testAddr, country: "US"}, nil)
-	c := mustOpen(t, WithSource(src), WithCache(10, 0))
+	c := mustOpen(t, WithSource(src), WithCache(10, 0, 0))
 
 	const goroutines = 20
 	var wg sync.WaitGroup
@@ -613,7 +601,7 @@ func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
 func TestLookupFrom_SingleflightErrorMiss(t *testing.T) {
 	sentinelErr := errors.New("broken")
 	src := newBlockingSource("db", nil, sentinelErr)
-	c := mustOpen(t, WithSource(src), WithCache(10, 0))
+	c := mustOpen(t, WithSource(src), WithCache(10, 0, 0))
 
 	const goroutines = 20
 	var wg sync.WaitGroup
@@ -707,7 +695,7 @@ func TestSourceNames(t *testing.T) {
 func TestWithCache_ValidSize(t *testing.T) {
 	src := newMockSource("db")
 	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
-	c := mustOpen(t, WithCache(100, 0), WithSource(src))
+	c := mustOpen(t, WithCache(100, 0, 0), WithSource(src))
 
 	_, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
@@ -715,37 +703,41 @@ func TestWithCache_ValidSize(t *testing.T) {
 	}
 }
 
-func TestWithCache_ZeroSize(t *testing.T) {
+func TestWithCache_ZeroSizeDisablesCache(t *testing.T) {
 	src := newMockSource("db")
-	_, err := Open(WithSource(src), WithCache(0, 0))
-	if err == nil {
-		t.Fatal("expected error for cache size 0")
-	}
-}
+	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	callCount := 0
+	counting := &countingSource{Source: src, counter: &callCount}
 
-func TestWithCache_NegativeSize(t *testing.T) {
-	src := newMockSource("db")
-	_, err := Open(WithSource(src), WithCache(-1, 0))
-	if err == nil {
-		t.Fatal("expected error for negative cache size")
+	c := mustOpen(t, WithSource(counting), WithCache(0, 0, 0))
+
+	for range 3 {
+		_, _ = c.Lookup(context.Background(), testAddr)
 	}
-	_, err = Open(WithSource(src), WithCache(-100, 0))
-	if err == nil {
-		t.Fatal("expected error for negative cache size -100")
+	if callCount != 3 {
+		t.Errorf("source called %d times, want 3 (maxEntries=0 disables cache)", callCount)
 	}
 }
 
 func TestWithCache_NegativeErrorTTL(t *testing.T) {
 	src := newMockSource("db")
-	_, err := Open(WithSource(src), WithCache(10, -time.Second))
+	_, err := Open(WithSource(src), WithCache(10, 0, -time.Second))
 	if err == nil {
 		t.Fatal("expected error for negative error cache TTL")
 	}
 }
 
+func TestWithCache_NegativeResultTTL(t *testing.T) {
+	src := newMockSource("db")
+	_, err := Open(WithSource(src), WithCache(10, -time.Second, 0))
+	if err == nil {
+		t.Fatal("expected error for negative result cache TTL")
+	}
+}
+
 func TestWithCache_ZeroErrorTTL(t *testing.T) {
 	src := newMockSource("db")
-	c, err := Open(WithSource(src), WithCache(10, 0))
+	c, err := Open(WithSource(src), WithCache(10, 0, 0))
 	if err != nil {
 		t.Fatalf("Open() error: %v", err)
 	}
@@ -757,7 +749,7 @@ func TestWithCache_EvictsCachedEntry(t *testing.T) {
 	callCount := 0
 	counting := &countingSource{Source: src, counter: &callCount}
 
-	c := mustOpen(t, WithSource(counting), WithCache(1, 0))
+	c := mustOpen(t, WithSource(counting), WithCache(1, 0, 0))
 
 	addr1 := netip.MustParseAddr("1.1.1.1")
 	addr2 := netip.MustParseAddr("2.2.2.2")
@@ -770,6 +762,81 @@ func TestWithCache_EvictsCachedEntry(t *testing.T) {
 
 	if callCount != 3 {
 		t.Errorf("source called %d times, want 3 (cache size 1 should evict)", callCount)
+	}
+}
+
+func TestWithCache_ResultTTLExpires(t *testing.T) {
+	src := newMockSource("db")
+	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	callCount := 0
+
+	c := mustOpen(t,
+		WithSource(&countingSource{Source: src, counter: &callCount}),
+		WithCache(10, 20*time.Millisecond, 0),
+	)
+
+	_, _ = c.Lookup(context.Background(), testAddr)
+	_, _ = c.Lookup(context.Background(), testAddr)
+	if callCount != 1 {
+		t.Fatalf("source called %d times before TTL expiry, want 1", callCount)
+	}
+
+	time.Sleep(30 * time.Millisecond)
+	_, _ = c.Lookup(context.Background(), testAddr)
+	if callCount != 2 {
+		t.Errorf("source called %d times after TTL expiry, want 2", callCount)
+	}
+}
+
+func TestWithCache_ResultTTLZeroIsPermanent(t *testing.T) {
+	src := newMockSource("db")
+	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	callCount := 0
+
+	c := mustOpen(t,
+		WithSource(&countingSource{Source: src, counter: &callCount}),
+		WithCache(10, 0, 0),
+	)
+
+	for range 3 {
+		_, _ = c.Lookup(context.Background(), testAddr)
+	}
+	if callCount != 1 {
+		t.Errorf("source called %d times, want 1 (ResultTTL=0 is permanent)", callCount)
+	}
+}
+
+func TestWithCache_ResultTTLIsSlidingWindow(t *testing.T) {
+	src := newMockSource("db")
+	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	callCount := 0
+
+	c := mustOpen(t,
+		WithSource(&countingSource{Source: src, counter: &callCount}),
+		WithCache(10, 20*time.Millisecond, 0),
+	)
+
+	_, _ = c.Lookup(context.Background(), testAddr) // t=0, caches with 20ms TTL
+	if callCount != 1 {
+		t.Fatalf("source called %d times, want 1", callCount)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+	_, _ = c.Lookup(context.Background(), testAddr) // t=10ms, cache hit resets TTL to 30ms
+	if callCount != 1 {
+		t.Fatalf("source called %d times after hit within TTL, want 1", callCount)
+	}
+
+	time.Sleep(15 * time.Millisecond) // t=25ms, past original 20ms deadline but before 30ms
+	_, _ = c.Lookup(context.Background(), testAddr)
+	if callCount != 1 {
+		t.Errorf("source called %d times at t=25ms, want 1 (sliding window extended TTL past original deadline)", callCount)
+	}
+
+	time.Sleep(20 * time.Millisecond) // t=45ms, well past 30ms deadline
+	_, _ = c.Lookup(context.Background(), testAddr)
+	if callCount != 2 {
+		t.Errorf("source called %d times after TTL expiry, want 2", callCount)
 	}
 }
 
@@ -798,7 +865,7 @@ func TestClose_PurgesCache(t *testing.T) {
 	src := newMockSource("db")
 	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
 	// Don't use mustOpen here — we call Close() manually to inspect state.
-	c, err := Open(WithSource(src), WithCache(10, time.Second))
+	c, err := Open(WithSource(src), WithCache(10, 0, time.Second))
 	if err != nil {
 		t.Fatalf("Open() error: %v", err)
 	}
@@ -811,8 +878,8 @@ func TestClose_PurgesCache(t *testing.T) {
 	}
 
 	_, _ = c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
-	if cached.cache.Len() != 1 {
-		t.Fatalf("cache len = %d, want 1 before Close()", cached.cache.Len())
+	if cached.results.Len() != 1 {
+		t.Fatalf("cache len = %d, want 1 before Close()", cached.results.Len())
 	}
 	cached.errors.Set(netip.MustParseAddr("2.2.2.2"), errors.New("broken"), ttlcache.DefaultTTL)
 	if cached.errors.Len() != 1 {
@@ -822,8 +889,8 @@ func TestClose_PurgesCache(t *testing.T) {
 		t.Fatalf("Close() error: %v", err)
 	}
 
-	if cached.cache.Len() != 0 {
-		t.Errorf("cache len = %d, want 0 after Close()", cached.cache.Len())
+	if cached.results.Len() != 0 {
+		t.Errorf("cache len = %d, want 0 after Close()", cached.results.Len())
 	}
 	if cached.errors.Len() != 0 {
 		t.Errorf("error cache len = %d, want 0 after Close()", cached.errors.Len())
@@ -838,7 +905,7 @@ func TestErrorCacheExpiresLazily(t *testing.T) {
 	lookupErr := errors.New("temporary failure")
 	src.addErr(lookupErr)
 	var callCount int
-	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 20*time.Millisecond))
+	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 0, 20*time.Millisecond))
 
 	if _, err := c.Lookup(context.Background(), testAddr); !errors.Is(err, lookupErr) {
 		t.Fatalf("first Lookup() error = %v, want lookupErr", err)

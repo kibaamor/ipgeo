@@ -18,10 +18,10 @@ func TestStructuredRenderer_WriteResult(t *testing.T) {
 	w := NewStructuredRenderer(&buf)
 	result := ipgeo.NewResult(testAddr, "db", "CN", "China", "", "", "", 0)
 
-	if err := w.WriteResult(&result); err != nil {
+	if err := w.WriteResult(result); err != nil {
 		t.Fatalf("WriteResult() error: %v", err)
 	}
-	if err := w.WriteResult(&result); err != nil {
+	if err := w.WriteResult(result); err != nil {
 		t.Fatalf("WriteResult() error: %v", err)
 	}
 	if err := w.Flush(); err != nil {
@@ -59,7 +59,7 @@ func TestStructuredRenderer_WriteResult_PropagatesWriteError(t *testing.T) {
 	w := NewStructuredRenderer(errWriter{err: writeErr})
 	result := ipgeo.NewResult(testAddr, "db", "CN", "China", "", "", "", 0)
 
-	if err := w.WriteResult(&result); err != nil {
+	if err := w.WriteResult(result); err != nil {
 		t.Fatalf("WriteResult() error = %v, want nil before buffered flush", err)
 	}
 	err := w.Flush()

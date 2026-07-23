@@ -21,12 +21,6 @@ sha256sum -c checksums.txt --ignore-missing
 
 Extract the archive and place `ipgeo` in your `PATH`.
 
-#### Install from source
-
-```bash
-go install github.com/kibaamor/ipgeo/cmd/ipgeo@latest
-```
-
 ### Usage
 
 ```bash
@@ -105,7 +99,7 @@ import (
 func main() {
 	client, err := ipgeo.Open(
 		ipgeo.WithMMDB("GeoLite2", "GeoLite2-City.mmdb", "GeoLite2-ASN.mmdb"),
-		ipgeo.WithCache(1024, 0),
+		ipgeo.WithCache(1024, 0, 0),
 	)
 	if err != nil {
 		panic(err)

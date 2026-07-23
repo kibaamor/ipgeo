@@ -60,7 +60,7 @@ func TestColoredFormatter_FormatAnnotation_Empty(t *testing.T) {
 	f := newColoredFormatter(io.Discard)
 	addr := netip.MustParseAddr("1.2.3.4")
 	empty := ipgeo.NewResult(addr, "db", "", "", "", "", "", 0)
-	if got := f.formatAnnotation(&empty); got != "" {
+	if got := f.formatAnnotation(empty); got != "" {
 		t.Errorf("FormatAnnotation with empty result should return empty string, got %q", got)
 	}
 }
@@ -69,7 +69,7 @@ func TestColoredFormatter_FormatAnnotation_WithResults(t *testing.T) {
 	f := newColoredFormatter(io.Discard)
 	addr := netip.MustParseAddr("1.2.3.4")
 	r := ipgeo.NewResult(addr, "db", "CN", "China", "", "", "", 0)
-	if got := f.formatAnnotation(&r); !strings.Contains(got, "China") {
+	if got := f.formatAnnotation(r); !strings.Contains(got, "China") {
 		t.Errorf("FormatAnnotation should contain result data, got %q", got)
 	}
 }
@@ -99,7 +99,7 @@ func TestInlineRenderer_HandleLine_WithIP(t *testing.T) {
 	if err := w.WriteRaw([]byte(line + "\n")); err != nil {
 		t.Fatalf("WriteRaw() error: %v", err)
 	}
-	if err := w.WriteResult(&result); err != nil {
+	if err := w.WriteResult(result); err != nil {
 		t.Fatalf("WriteResult() error: %v", err)
 	}
 	if err := w.Flush(); err != nil {

@@ -11,30 +11,37 @@ import (
 )
 
 type cachedSource struct {
-	source Source
-	cache  *ttlcache.Cache[netip.Addr, *Result]
-	errors *ttlcache.Cache[netip.Addr, error]
+	source  Source
+	results *ttlcache.Cache[netip.Addr, *Result]
+	errors  *ttlcache.Cache[netip.Addr, error]
 }
 
-func newCachedSource(src Source, maxEntries int, cacheErrorsTTL time.Duration) (*cachedSource, error) {
-	if maxEntries <= 0 {
-		return nil, fmt.Errorf("ipgeo: create cache: maxEntries must be positive, got %d", maxEntries)
+func newCachedSource(src Source, maxEntries uint, resultTTL, errorTTL time.Duration) (*cachedSource, error) {
+	if maxEntries == 0 {
+		return nil, fmt.Errorf("ipgeo: create cache: maxEntries must be positive, got 0")
+	}
+	if resultTTL < 0 {
+		return nil, fmt.Errorf("ipgeo: create cache: resultTTL must not be negative, got %s", resultTTL)
+	}
+	if errorTTL < 0 {
+		return nil, fmt.Errorf("ipgeo: create cache: errorTTL must not be negative, got %s", errorTTL)
 	}
 	cache := ttlcache.New(
 		ttlcache.WithCapacity[netip.Addr, *Result](uint64(maxEntries)),
+		ttlcache.WithTTL[netip.Addr, *Result](resultTTL),
 	)
 	var errors *ttlcache.Cache[netip.Addr, error]
-	if cacheErrorsTTL > 0 {
+	if errorTTL > 0 {
 		errors = ttlcache.New(
 			ttlcache.WithCapacity[netip.Addr, error](uint64(maxEntries)),
-			ttlcache.WithTTL[netip.Addr, error](cacheErrorsTTL),
+			ttlcache.WithTTL[netip.Addr, error](errorTTL),
 			ttlcache.WithDisableTouchOnHit[netip.Addr, error](),
 		)
 	}
 	return &cachedSource{
-		source: src,
-		cache:  cache,
-		errors: errors,
+		source:  src,
+		results: cache,
+		errors:  errors,
 	}, nil
 }
 
@@ -51,7 +58,7 @@ func (s *cachedSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, er
 		}
 		return nil, lookupErr
 	}
-	s.cache.Set(addr, result, ttlcache.NoTTL)
+	s.results.Set(addr, result, ttlcache.DefaultTTL)
 	return result, nil
 }
 
@@ -60,7 +67,7 @@ func isContextError(err error) bool {
 }
 
 func (s *cachedSource) lookupCache(addr netip.Addr) (*Result, error, bool) {
-	if item := s.cache.Get(addr); item != nil {
+	if item := s.results.Get(addr); item != nil {
 		result := item.Value()
 		return result, nil, true
 	}
@@ -77,7 +84,7 @@ func (s *cachedSource) Name() string {
 }
 
 func (s *cachedSource) Close() error {
-	s.cache.DeleteAll()
+	s.results.DeleteAll()
 	if s.errors != nil {
 		s.errors.DeleteAll()
 	}

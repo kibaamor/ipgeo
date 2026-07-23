@@ -16,12 +16,12 @@ type Result struct {
 	province     string
 	city         string
 	organization string
-	asn          uint
+	asn          uint32
 }
 
 // NewResult returns a Result populated with the provided values.
-func NewResult(ip netip.Addr, source, countryCode, country, province, city, organization string, asn uint) Result {
-	return Result{
+func NewResult(ip netip.Addr, source, countryCode, country, province, city, organization string, asn uint32) *Result {
+	return &Result{
 		ip:           ip,
 		source:       source,
 		countryCode:  countryCode,
@@ -55,7 +55,7 @@ func (r Result) City() string { return r.city }
 func (r Result) Organization() string { return r.organization }
 
 // ASN returns the autonomous system number, when available.
-func (r Result) ASN() uint { return r.asn }
+func (r Result) ASN() uint32 { return r.asn }
 
 // MarshalJSON implements json.Marshaler.
 func (r Result) MarshalJSON() ([]byte, error) {
@@ -67,7 +67,7 @@ func (r Result) MarshalJSON() ([]byte, error) {
 		Province     string     `json:"province,omitempty"`
 		City         string     `json:"city,omitempty"`
 		Organization string     `json:"organization,omitempty"`
-		ASN          uint       `json:"asn,omitempty"`
+		ASN          uint32     `json:"asn,omitempty"`
 	}{
 		IP:           r.ip,
 		Source:       r.source,

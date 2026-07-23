@@ -9,15 +9,13 @@ import (
 	"time"
 )
 
-func TestNewCachedSourceRejectsInvalidSizes(t *testing.T) {
-	for _, size := range []int{0, -1} {
-		_, err := newCachedSource(newMockSource("db"), size, 0)
-		if err == nil {
-			t.Fatalf("newCachedSource(size=%d) error = nil, want error", size)
-		}
-		if !strings.Contains(err.Error(), "create cache") {
-			t.Fatalf("newCachedSource(size=%d) error = %v, want create cache error", size, err)
-		}
+func TestNewCachedSourceRejectsZeroSize(t *testing.T) {
+	_, err := newCachedSource(newMockSource("db"), 0, 0, 0)
+	if err == nil {
+		t.Fatalf("newCachedSource(size=0) error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "create cache") {
+		t.Fatalf("newCachedSource(size=0) error = %v, want create cache error", err)
 	}
 }
 

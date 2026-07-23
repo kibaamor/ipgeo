@@ -98,7 +98,7 @@ func mergeRecord(result *Result, record *cityRecord) {
 		result.city = pickName(record.City.Names)
 	}
 	if result.asn == 0 {
-		result.asn = record.AutonomousSystemNumber
+		result.asn = uint32(record.AutonomousSystemNumber) //nolint:gosec // ASN is 32-bit per RFC 6793
 	}
 	if result.organization == "" {
 		result.organization = record.AutonomousSystemOrganization

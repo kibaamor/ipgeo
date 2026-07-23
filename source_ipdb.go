@@ -76,12 +76,12 @@ func (i *ipdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error)
 
 	if len(info.ASNInfo) > 0 {
 		if asn := info.ASNInfo[0].ASN; asn >= 0 {
-			result.asn = uint(asn) //nolint:gosec
+			result.asn = uint32(asn) //nolint:gosec // ASN is 32-bit per RFC 6793
 		}
 	} else if info.ASN != "" {
 		asnStr := strings.TrimPrefix(info.ASN, "AS")
-		if n, err := strconv.ParseUint(asnStr, 10, 64); err == nil {
-			result.asn = uint(n)
+		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
+			result.asn = uint32(n)
 		}
 	}
 

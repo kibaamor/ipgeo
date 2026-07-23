@@ -70,19 +70,20 @@ func WithSource(src Source) Option {
 	}
 }
 
-// WithCache enables a per-source LRU cache with the given capacity. Successful
-// results and nil not-found results are cached in the LRU. Ordinary lookup errors are
-// cached separately for errorTTL; pass 0 to disable ordinary error caching.
-// maxEntries must be positive.
-func WithCache(maxEntries int, errorTTL time.Duration) Option {
+// WithCache enables a per-source LRU cache. Results are cached with a sliding
+// resultTTL (0 = permanent); errors are cached with a fixed errorTTL
+// (0 = disabled). Context errors are never cached. Pass maxEntries=0 to disable
+// caching entirely.
+func WithCache(maxEntries uint, resultTTL, errorTTL time.Duration) Option {
 	return func(c *Client) error {
-		if maxEntries <= 0 {
-			return fmt.Errorf("WithCache: maxEntries must be positive, got %d", maxEntries)
+		if resultTTL < 0 {
+			return fmt.Errorf("WithCache: resultTTL must not be negative, got %s", resultTTL)
 		}
 		if errorTTL < 0 {
 			return fmt.Errorf("WithCache: errorTTL must not be negative, got %s", errorTTL)
 		}
 		c.cacheEntries = maxEntries
+		c.cacheResultTTL = resultTTL
 		c.cacheErrorsTTL = errorTTL
 		return nil
 	}

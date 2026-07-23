@@ -80,7 +80,7 @@ func TestIPDBSourceLookup(t *testing.T) {
 	tests := []struct {
 		name string
 		info *ipdb.CityInfo
-		asn  uint
+		asn  uint32
 	}{
 		{
 			name: "asn info",

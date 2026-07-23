@@ -66,8 +66,8 @@ func (s *ip2locationSource) Lookup(_ context.Context, addr netip.Addr) (*Result,
 	}
 	if asnStr := cleanIP2LocationField(rec.Asn); asnStr != "" {
 		asnStr = strings.TrimPrefix(asnStr, "AS")
-		if n, err := strconv.ParseUint(asnStr, 10, 64); err == nil {
-			result.asn = uint(n)
+		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
+			result.asn = uint32(n)
 		}
 	}
 

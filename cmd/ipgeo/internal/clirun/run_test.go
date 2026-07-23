@@ -20,7 +20,7 @@ func TestStreamInput_ProcessesInputWithInlineRenderer(t *testing.T) {
 
 	err := streamInput(context.Background(), strings.NewReader("client=1.2.3.4"), output.NewInlineRenderer(&buf), func(_ context.Context, got netip.Addr) (*ipgeo.Result, error) {
 		if got == addr {
-			return &result, nil
+			return result, nil
 		}
 		return nil, nil
 	})
@@ -40,7 +40,7 @@ func TestStreamInput_FlushesAfterEachRead(t *testing.T) {
 
 	err := streamInput(context.Background(), reader, renderer, func(_ context.Context, got netip.Addr) (*ipgeo.Result, error) {
 		if got == addr {
-			return &result, nil
+			return result, nil
 		}
 		return nil, nil
 	})
@@ -77,7 +77,7 @@ func TestStreamInput_FlushesBufferedOutputAfterEOFLookupError(t *testing.T) {
 	err := streamInput(context.Background(), strings.NewReader("first 1.2.3.4 second 2.3.4.5"), output.NewStructuredRenderer(&buf), func(_ context.Context, addr netip.Addr) (*ipgeo.Result, error) {
 		switch addr {
 		case first:
-			return &result, nil
+			return result, nil
 		case second:
 			return nil, lookupErr
 		default:

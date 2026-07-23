@@ -10,7 +10,7 @@ var addr1 = netip.MustParseAddr("1.2.3.4")
 
 // helpers
 
-func makeResult(countryCode, country, province, city, organization string, asn uint) Result {
+func makeResult(countryCode, country, province, city, organization string, asn uint32) *Result {
 	return NewResult(addr1, "test", countryCode, country, province, city, organization, asn)
 }
 
@@ -19,12 +19,12 @@ func makeResult(countryCode, country, province, city, organization string, asn u
 func TestIsEmpty(t *testing.T) {
 	tests := []struct {
 		name  string
-		r     Result
+		r     *Result
 		empty bool
 	}{
-		{"zero value", Result{}, true},
-		{"only ip set", Result{ip: addr1}, true},
-		{"only source set", Result{source: "x"}, true},
+		{"zero value", &Result{}, true},
+		{"only ip set", &Result{ip: addr1}, true},
+		{"only source set", &Result{source: "x"}, true},
 		{"countryCode set", makeResult("CN", "", "", "", "", 0), false},
 		{"country set", makeResult("", "China", "", "", "", 0), false},
 		{"province set", makeResult("", "", "Beijing", "", "", 0), false},
@@ -47,12 +47,12 @@ func TestIsEmpty(t *testing.T) {
 func TestString(t *testing.T) {
 	tests := []struct {
 		name     string
-		r        Result
+		r        *Result
 		expected string
 	}{
 		{
 			name:     "empty result",
-			r:        Result{},
+			r:        &Result{},
 			expected: "",
 		},
 		{

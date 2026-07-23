@@ -1,6 +1,6 @@
 module github.com/kibaamor/ipgeo/cmd/ipgeo
 
-go 1.26.2
+go 1.25.0
 
 require (
 	github.com/chzyer/readline v1.5.1

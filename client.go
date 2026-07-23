@@ -19,7 +19,8 @@ import (
 type Client struct {
 	sources        []Source
 	sourceByName   map[string]Source
-	cacheEntries   int
+	cacheEntries   uint
+	cacheResultTTL time.Duration
 	cacheErrorsTTL time.Duration
 	closeOnce      sync.Once
 	closeErr       error
@@ -63,7 +64,7 @@ func (c *Client) wrapSources() error {
 	for i, src := range c.sources {
 		wrapped := Source(newSingleflightSource(src))
 		if c.cacheEntries > 0 {
-			cached, err := newCachedSource(wrapped, c.cacheEntries, c.cacheErrorsTTL)
+			cached, err := newCachedSource(wrapped, c.cacheEntries, c.cacheResultTTL, c.cacheErrorsTTL)
 			if err != nil {
 				return err
 			}

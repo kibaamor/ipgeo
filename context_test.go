@@ -91,7 +91,7 @@ func TestCachedSource_DoesNotCacheContextError(t *testing.T) {
 	var callCount int
 	counting := &countingSource{Source: src, counter: &callCount}
 
-	cached, err := newCachedSource(counting, 10, time.Second)
+	cached, err := newCachedSource(counting, 10, 0, time.Second)
 	if err != nil {
 		t.Fatalf("newCachedSource() error: %v", err)
 	}
