@@ -32,15 +32,8 @@ func Open(creators ...SourceCreator) (*Client, error) {
 		return nil, ErrNoSources
 	}
 
-	seen := make(map[string]struct{}, len(creators))
-	for _, c := range creators {
-		if _, exists := seen[c.name]; exists {
-			return nil, fmt.Errorf("%w: %q", ErrDuplicateSource, c.name)
-		}
-		seen[c.name] = struct{}{}
-	}
-
 	sources := make([]Source, len(creators))
+	sourceByName := make(map[string]Source, len(creators))
 	for i, c := range creators {
 		var err error
 		sources[i], err = c.Create()
@@ -50,11 +43,14 @@ func Open(creators ...SourceCreator) (*Client, error) {
 			}
 			return nil, err
 		}
-	}
-
-	sourceByName := make(map[string]Source, len(sources))
-	for _, src := range sources {
-		sourceByName[src.Name()] = src
+		name := sources[i].Name()
+		if _, exists := sourceByName[name]; exists {
+			for j := range i + 1 {
+				_ = sources[j].Close()
+			}
+			return nil, fmt.Errorf("%w: %q", ErrDuplicateSource, name)
+		}
+		sourceByName[name] = sources[i]
 	}
 
 	return &Client{sources: sources, sourceByName: sourceByName}, nil

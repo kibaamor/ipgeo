@@ -3,6 +3,7 @@ package ipgeo
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -15,7 +16,6 @@ type SourceDecorator func(Source) (Source, error)
 // decorators with Decorate. Pass the SourceCreator directly to Open,
 // or call Create to build the Source manually.
 type SourceCreator struct {
-	name       string
 	build      func() (Source, error)
 	decorators []SourceDecorator
 }
@@ -24,7 +24,6 @@ type SourceCreator struct {
 // companionPath is optional; pass "" to omit.
 func MMDB(name, path, companionPath string) SourceCreator {
 	return SourceCreator{
-		name: name,
 		build: func() (Source, error) {
 			src, err := openMMDB(name, path, companionPath)
 			if err != nil {
@@ -38,7 +37,6 @@ func MMDB(name, path, companionPath string) SourceCreator {
 // IPDB returns a SourceCreator for an IPIP.net IPDB source.
 func IPDB(name, path string) SourceCreator {
 	return SourceCreator{
-		name: name,
 		build: func() (Source, error) {
 			src, err := openIPDB(name, path)
 			if err != nil {
@@ -53,7 +51,6 @@ func IPDB(name, path string) SourceCreator {
 // v4Path and v6Path may each be empty, but at least one must be provided.
 func XDB(name, v4Path, v6Path string) SourceCreator {
 	return SourceCreator{
-		name: name,
 		build: func() (Source, error) {
 			src, err := openXDB(name, v4Path, v6Path)
 			if err != nil {
@@ -67,7 +64,6 @@ func XDB(name, v4Path, v6Path string) SourceCreator {
 // IP2Location returns a SourceCreator for an IP2Location BIN database source.
 func IP2Location(name, path string) SourceCreator {
 	return SourceCreator{
-		name: name,
 		build: func() (Source, error) {
 			src, err := openIP2Location(name, path)
 			if err != nil {
@@ -81,12 +77,7 @@ func IP2Location(name, path string) SourceCreator {
 // Wrap returns a SourceCreator for an existing Source, allowing it to be
 // decorated and included in a Client.
 func Wrap(src Source) SourceCreator {
-	var name string
-	if src != nil {
-		name = src.Name()
-	}
 	return SourceCreator{
-		name: name,
 		build: func() (Source, error) {
 			if src == nil {
 				return nil, errors.New("Wrap: src must not be nil")
@@ -100,7 +91,7 @@ func Wrap(src Source) SourceCreator {
 // the order they are added: the first added is the innermost wrapper,
 // the last added is the outermost.
 func (c SourceCreator) Decorate(d SourceDecorator) SourceCreator {
-	c.decorators = append(c.decorators, d)
+	c.decorators = append(slices.Clone(c.decorators), d)
 	return c
 }
 

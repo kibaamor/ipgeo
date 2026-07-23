@@ -76,18 +76,20 @@ func Creator(entry Entry, sourcePath func(string) string) (ipgeo.SourceCreator, 
 	if entry.CompanionFilename != "" {
 		companionPath = sourcePath(entry.CompanionFilename)
 	}
+	var creator ipgeo.SourceCreator
 	switch entry.Type {
 	case "mmdb":
-		return ipgeo.MMDB(entry.Name, path, companionPath).Decorate(ipgeo.Singleflight()), nil
+		creator = ipgeo.MMDB(entry.Name, path, companionPath)
 	case "ipdb":
-		return ipgeo.IPDB(entry.Name, path).Decorate(ipgeo.Singleflight()), nil
+		creator = ipgeo.IPDB(entry.Name, path)
 	case "xdb":
-		return ipgeo.XDB(entry.Name, path, companionPath).Decorate(ipgeo.Singleflight()), nil
+		creator = ipgeo.XDB(entry.Name, path, companionPath)
 	case "ip2location":
-		return ipgeo.IP2Location(entry.Name, path).Decorate(ipgeo.Singleflight()), nil
+		creator = ipgeo.IP2Location(entry.Name, path)
 	default:
 		return ipgeo.SourceCreator{}, fmt.Errorf("configure source %s: unknown source type: %s", entry.Name, entry.Type)
 	}
+	return creator.Decorate(ipgeo.Singleflight()), nil
 }
 
 func Files(entries []Entry, sourcePath func(string) string) []File {

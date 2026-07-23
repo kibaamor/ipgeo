@@ -99,7 +99,6 @@ func TestOpenCreatorErrorClosesPreviouslyCreatedSources(t *testing.T) {
 	sentinelErr := errors.New("creator broken")
 	src := newMockSource("db")
 	failing := SourceCreator{
-		name:  "failing",
 		build: func() (Source, error) { return nil, sentinelErr },
 	}
 
