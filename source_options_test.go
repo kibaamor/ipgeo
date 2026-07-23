@@ -12,44 +12,44 @@ func TestOpenDatabaseOptionsFailWithInvalidPaths(t *testing.T) {
 	missing := "testdata/missing-db"
 	tests := []struct {
 		name    string
-		opt     Option
+		creator SourceCreator
 		wantErr string
 	}{
 		{
 			name:    "mmdb empty path",
-			opt:     WithMMDB("mmdb", "", ""),
+			creator: MMDB("mmdb", "", ""),
 			wantErr: "open mmdb mmdb: path must be non-empty",
 		},
 		{
 			name:    "mmdb missing path",
-			opt:     WithMMDB("mmdb", missing, ""),
+			creator: MMDB("mmdb", missing, ""),
 			wantErr: "open mmdb mmdb:",
 		},
 		{
 			name:    "ipdb missing path",
-			opt:     WithIPDB("ipdb", missing),
+			creator: IPDB("ipdb", missing),
 			wantErr: "open ipdb ipdb:",
 		},
 		{
 			name:    "xdb empty paths",
-			opt:     WithXDB("xdb", "", ""),
+			creator: XDB("xdb", "", ""),
 			wantErr: "open xdb xdb: at least one of v4Path or v6Path must be non-empty",
 		},
 		{
 			name:    "xdb missing v4 path",
-			opt:     WithXDB("xdb", missing, ""),
+			creator: XDB("xdb", missing, ""),
 			wantErr: "open xdb xdb:",
 		},
 		{
 			name:    "ip2location missing path",
-			opt:     WithIP2Location("ip2location", missing),
+			creator: IP2Location("ip2location", missing),
 			wantErr: "open ip2location ip2location:",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Open(tt.opt)
+			_, err := Open(tt.creator)
 			if err == nil {
 				t.Fatal("Open() error = nil, want error")
 			}
@@ -281,17 +281,17 @@ func TestDatabaseOptionsWithInjectedOpeners(t *testing.T) {
 	})
 
 	tests := []struct {
-		name string
-		opt  Option
+		name    string
+		creator SourceCreator
 	}{
-		{name: "mmdb", opt: WithMMDB("mmdb", "city.mmdb", "asn.mmdb")},
-		{name: "ipdb", opt: WithIPDB("ipdb", "city.ipdb")},
-		{name: "xdb", opt: WithXDB("xdb", "v4.xdb", "v6.xdb")},
-		{name: "ip2location", opt: WithIP2Location("ip2location", "db.bin")},
+		{name: "mmdb", creator: MMDB("mmdb", "city.mmdb", "asn.mmdb")},
+		{name: "ipdb", creator: IPDB("ipdb", "city.ipdb")},
+		{name: "xdb", creator: XDB("xdb", "v4.xdb", "v6.xdb")},
+		{name: "ip2location", creator: IP2Location("ip2location", "db.bin")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := Open(tt.opt)
+			client, err := Open(tt.creator)
 			if err != nil {
 				t.Fatalf("Open() error: %v", err)
 			}

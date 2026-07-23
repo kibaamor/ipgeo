@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/netip"
 	"sync"
-	"time"
 )
 
 // Client queries one or more geolocation sources.
@@ -17,64 +16,48 @@ import (
 // concurrently with any query method; the result of doing so is undefined, as
 // with io.Closer.
 type Client struct {
-	sources        []Source
-	sourceByName   map[string]Source
-	cacheEntries   uint
-	cacheResultTTL time.Duration
-	cacheErrorsTTL time.Duration
-	closeOnce      sync.Once
-	closeErr       error
+	sources      []Source
+	sourceByName map[string]Source
+	closeOnce    sync.Once
+	closeErr     error
 }
 
-// Open creates a new Client configured by the provided options.
-// At least one source option (e.g. WithMMDB, WithSource) is required.
-// Returns an error if any option fails or if source names are duplicated.
-func Open(opts ...Option) (*Client, error) {
-	c := &Client{}
-
-	for _, opt := range opts {
-		if err := opt(c); err != nil {
-			_ = c.Close()
-			return nil, err
-		}
-	}
-	if len(c.sources) == 0 {
+// Open creates a new Client from the provided source creators.
+// Each creator is built (Create) in order; if any fails, all previously
+// created sources are closed and the error is returned.
+// At least one creator is required (ErrNoSources); source names must be
+// unique (ErrDuplicateSource).
+func Open(creators ...SourceCreator) (*Client, error) {
+	if len(creators) == 0 {
 		return nil, ErrNoSources
 	}
 
-	seen := make(map[string]struct{}, len(c.sources))
-	for _, src := range c.sources {
-		if _, exists := seen[src.Name()]; exists {
-			_ = c.Close()
-			return nil, fmt.Errorf("%w: %q", ErrDuplicateSource, src.Name())
+	seen := make(map[string]struct{}, len(creators))
+	for _, c := range creators {
+		if _, exists := seen[c.name]; exists {
+			return nil, fmt.Errorf("%w: %q", ErrDuplicateSource, c.name)
 		}
-		seen[src.Name()] = struct{}{}
+		seen[c.name] = struct{}{}
 	}
 
-	if err := c.wrapSources(); err != nil {
-		_ = c.Close()
-		return nil, err
-	}
-
-	return c, nil
-}
-
-func (c *Client) wrapSources() error {
-	sourceByName := make(map[string]Source, len(c.sources))
-	for i, src := range c.sources {
-		wrapped := Source(newSingleflightSource(src))
-		if c.cacheEntries > 0 {
-			cached, err := newCachedSource(wrapped, c.cacheEntries, c.cacheResultTTL, c.cacheErrorsTTL)
-			if err != nil {
-				return err
+	sources := make([]Source, len(creators))
+	for i, c := range creators {
+		var err error
+		sources[i], err = c.Create()
+		if err != nil {
+			for j := range i {
+				_ = sources[j].Close()
 			}
-			wrapped = cached
+			return nil, err
 		}
-		c.sources[i] = wrapped
-		sourceByName[wrapped.Name()] = wrapped
 	}
-	c.sourceByName = sourceByName
-	return nil
+
+	sourceByName := make(map[string]Source, len(sources))
+	for _, src := range sources {
+		sourceByName[src.Name()] = src
+	}
+
+	return &Client{sources: sources, sourceByName: sourceByName}, nil
 }
 
 // SourceNames returns the names of all configured sources in order.

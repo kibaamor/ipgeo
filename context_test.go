@@ -26,7 +26,7 @@ func newRecordingSource(name string) *recordingSource {
 
 func TestLookup_RespectsCancelledContext(t *testing.T) {
 	src := newRecordingSource("db")
-	c := mustOpen(t, WithSource(src))
+	c := mustOpen(t, Wrap(src))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -46,7 +46,7 @@ func TestLookup_RespectsCancelledContext(t *testing.T) {
 func TestLookupAll_RespectsCancelledContext(t *testing.T) {
 	src1 := newRecordingSource("db1")
 	src2 := newRecordingSource("db2")
-	c := mustOpen(t, WithSource(src1), WithSource(src2))
+	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -65,7 +65,7 @@ func TestLookupAll_RespectsCancelledContext(t *testing.T) {
 
 func TestLookupFrom_RespectsCancelledContext(t *testing.T) {
 	src := newRecordingSource("db")
-	c := mustOpen(t, WithSource(src))
+	c := mustOpen(t, Wrap(src))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

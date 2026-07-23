@@ -53,9 +53,9 @@ func (m *mockSource) addErr(err error) {
 }
 
 // mustOpen calls Open and fatals the test on error.
-func mustOpen(t *testing.T, opts ...Option) *Client {
+func mustOpen(t *testing.T, creators ...SourceCreator) *Client {
 	t.Helper()
-	c, err := Open(opts...)
+	c, err := Open(creators...)
 	if err != nil {
 		t.Fatalf("Open() unexpected error: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestOpen_NoSources(t *testing.T) {
 }
 
 func TestOpen_NilSource(t *testing.T) {
-	_, err := Open(WithSource(nil))
+	_, err := Open(Wrap(nil))
 	if err == nil {
 		t.Fatal("expected error with nil source")
 	}
@@ -81,14 +81,14 @@ func TestOpen_NilSource(t *testing.T) {
 
 func TestOpen_DuplicateName(t *testing.T) {
 	src := newMockSource("db")
-	_, err := Open(WithSource(src), WithSource(src))
+	_, err := Open(Wrap(src), Wrap(src))
 	if err == nil {
 		t.Fatal("expected error for duplicate source name")
 	}
 }
 
 func TestOpen_Success(t *testing.T) {
-	mustOpen(t, WithSource(newMockSource("db")))
+	mustOpen(t, Wrap(newMockSource("db")))
 }
 
 // ---- Lookup ----
@@ -96,7 +96,7 @@ func TestOpen_Success(t *testing.T) {
 func TestLookup_Found(t *testing.T) {
 	src := newMockSource("db")
 	src.add("1.2.3.4", &Result{ip: testAddr, source: "db", country: "China"})
-	c := mustOpen(t, WithSource(src))
+	c := mustOpen(t, Wrap(src))
 
 	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
@@ -108,7 +108,7 @@ func TestLookup_Found(t *testing.T) {
 }
 
 func TestLookup_NotFound(t *testing.T) {
-	c := mustOpen(t, WithSource(newMockSource("db")))
+	c := mustOpen(t, Wrap(newMockSource("db")))
 
 	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
@@ -123,7 +123,7 @@ func TestLookup_SourceError(t *testing.T) {
 	src := newMockSource("db")
 	sentinelErr := errors.New("db broken")
 	src.addErr(sentinelErr)
-	c := mustOpen(t, WithSource(src))
+	c := mustOpen(t, Wrap(src))
 
 	_, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err == nil {
@@ -138,7 +138,7 @@ func TestLookup_FallsThrough(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
 	src2.add("1.2.3.4", &Result{ip: testAddr, source: "db2", country: "US"})
-	c := mustOpen(t, WithSource(src1), WithSource(src2))
+	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
@@ -153,7 +153,7 @@ func TestLookup_FallsThrough(t *testing.T) {
 func TestLookup_IPv4MappedIPv6(t *testing.T) {
 	src := newMockSource("db")
 	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
-	c := mustOpen(t, WithSource(src))
+	c := mustOpen(t, Wrap(src))
 
 	mapped := netip.MustParseAddr("::ffff:1.2.3.4")
 	got, err := c.Lookup(context.Background(), mapped)
@@ -175,7 +175,7 @@ func TestLookup_CacheHit(t *testing.T) {
 
 	// Wrap to count calls
 	counting := &countingSource{Source: src, counter: &callCount}
-	c := mustOpen(t, WithSource(counting), WithCache(10, 0, 0))
+	c := mustOpen(t, Wrap(counting).Decorate(Cache(10, 0, 0)))
 
 	addr := netip.MustParseAddr("1.2.3.4")
 	_, _ = c.Lookup(context.Background(), addr)
@@ -195,9 +195,8 @@ func TestLookup_CachesNilMissFallthrough(t *testing.T) {
 	src2Count := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src1, counter: &src1Count}),
-		WithSource(&countingSource{Source: src2, counter: &src2Count}),
-		WithCache(10, 0, time.Second),
+		Wrap(&countingSource{Source: src1, counter: &src1Count}).Decorate(Cache(10, 0, time.Second)),
+		Wrap(&countingSource{Source: src2, counter: &src2Count}).Decorate(Cache(10, 0, time.Second)),
 	)
 
 	for range 3 {
@@ -235,7 +234,7 @@ func TestLookupAll_MultiSource(t *testing.T) {
 	src2 := newMockSource("db2")
 	src1.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
 	src2.add("1.2.3.4", &Result{ip: testAddr, country: "China2"})
-	c := mustOpen(t, WithSource(src1), WithSource(src2))
+	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	results, err := c.LookupAll(context.Background(), testAddr)
 	if err != nil {
@@ -247,7 +246,7 @@ func TestLookupAll_MultiSource(t *testing.T) {
 }
 
 func TestLookupAll_NoneFound(t *testing.T) {
-	c := mustOpen(t, WithSource(newMockSource("db")))
+	c := mustOpen(t, Wrap(newMockSource("db")))
 
 	results, err := c.LookupAll(context.Background(), testAddr)
 	if err != nil {
@@ -263,7 +262,7 @@ func TestLookupAll_PartialErrors(t *testing.T) {
 	src2 := newMockSource("db2")
 	src1.addErr(errors.New("broken"))
 	src2.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
-	c := mustOpen(t, WithSource(src1), WithSource(src2))
+	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	results, err := c.LookupAll(context.Background(), testAddr)
 	if err == nil {
@@ -286,9 +285,8 @@ func TestLookupAll_CacheHitPerSource(t *testing.T) {
 	src2Count := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src1, counter: &src1Count}),
-		WithSource(&countingSource{Source: src2, counter: &src2Count}),
-		WithCache(10, 0, time.Second),
+		Wrap(&countingSource{Source: src1, counter: &src1Count}).Decorate(Cache(10, 0, time.Second)),
+		Wrap(&countingSource{Source: src2, counter: &src2Count}).Decorate(Cache(10, 0, time.Second)),
 	)
 
 	for range 2 {
@@ -318,9 +316,8 @@ func TestLookupAll_CachesErrors(t *testing.T) {
 	src2Count := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src1, counter: &src1Count}),
-		WithSource(&countingSource{Source: src2, counter: &src2Count}),
-		WithCache(10, 0, time.Second),
+		Wrap(&countingSource{Source: src1, counter: &src1Count}).Decorate(Cache(10, 0, time.Second)),
+		Wrap(&countingSource{Source: src2, counter: &src2Count}).Decorate(Cache(10, 0, time.Second)),
 	)
 
 	for range 2 {
@@ -347,7 +344,7 @@ func TestLookupFrom_Found(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
 	src2.add("1.2.3.4", &Result{ip: testAddr, country: "US"})
-	c := mustOpen(t, WithSource(src1), WithSource(src2))
+	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	got, err := c.LookupFrom(context.Background(), "db2", testAddr)
 	if err != nil {
@@ -359,7 +356,7 @@ func TestLookupFrom_Found(t *testing.T) {
 }
 
 func TestLookupFrom_UnknownSource(t *testing.T) {
-	c := mustOpen(t, WithSource(newMockSource("db")))
+	c := mustOpen(t, Wrap(newMockSource("db")))
 
 	_, err := c.LookupFrom(context.Background(), "nonexistent", testAddr)
 	if err == nil {
@@ -368,7 +365,7 @@ func TestLookupFrom_UnknownSource(t *testing.T) {
 }
 
 func TestLookupFrom_NotFound(t *testing.T) {
-	c := mustOpen(t, WithSource(newMockSource("db")))
+	c := mustOpen(t, Wrap(newMockSource("db")))
 
 	got, err := c.LookupFrom(context.Background(), "db", testAddr)
 	if err != nil {
@@ -387,9 +384,8 @@ func TestLookupFrom_CacheHit(t *testing.T) {
 	src2Count := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src1, counter: &src1Count}),
-		WithSource(&countingSource{Source: src2, counter: &src2Count}),
-		WithCache(10, 0, 0),
+		Wrap(&countingSource{Source: src1, counter: &src1Count}).Decorate(Cache(10, 0, 0)),
+		Wrap(&countingSource{Source: src2, counter: &src2Count}).Decorate(Cache(10, 0, 0)),
 	)
 
 	for range 3 {
@@ -416,7 +412,7 @@ func TestLookupFrom_DoesNotCacheErrorWithoutTTL(t *testing.T) {
 	src.addErr(sentinelErr)
 	callCount := 0
 
-	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 0, 0))
+	c := mustOpen(t, Wrap(&countingSource{Source: src, counter: &callCount}).Decorate(Cache(10, 0, 0)))
 
 	for range 2 {
 		_, err := c.LookupFrom(context.Background(), "db", testAddr)
@@ -436,7 +432,7 @@ func TestLookupFrom_CachesErrorWithTTL(t *testing.T) {
 	src.addErr(sentinelErr)
 	callCount := 0
 
-	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 0, time.Second))
+	c := mustOpen(t, Wrap(&countingSource{Source: src, counter: &callCount}).Decorate(Cache(10, 0, time.Second)))
 
 	for range 2 {
 		_, err := c.LookupFrom(context.Background(), "db", testAddr)
@@ -457,8 +453,7 @@ func TestLookupFrom_CacheErrorExpires(t *testing.T) {
 	callCount := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src, counter: &callCount}),
-		WithCache(10, 0, 20*time.Millisecond),
+		Wrap(&countingSource{Source: src, counter: &callCount}).Decorate(Cache(10, 0, 20*time.Millisecond)),
 	)
 
 	_, _ = c.LookupFrom(context.Background(), "db", testAddr)
@@ -484,8 +479,7 @@ func TestLookupFrom_CacheErrorCanBeDisabled(t *testing.T) {
 	callCount := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src, counter: &callCount}),
-		WithCache(10, 0, 0),
+		Wrap(&countingSource{Source: src, counter: &callCount}).Decorate(Cache(10, 0, 0)),
 	)
 
 	for range 2 {
@@ -502,7 +496,7 @@ func TestLookupFrom_CacheErrorCanBeDisabled(t *testing.T) {
 
 func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
 	src := newBlockingSource("db", &Result{ip: testAddr, country: "US"}, nil)
-	c := mustOpen(t, WithSource(src))
+	c := mustOpen(t, Wrap(src).Decorate(Singleflight()))
 
 	const goroutines = 20
 	var wg sync.WaitGroup
@@ -554,7 +548,7 @@ func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
 
 func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
 	src := newBlockingSource("db", &Result{ip: testAddr, country: "US"}, nil)
-	c := mustOpen(t, WithSource(src), WithCache(10, 0, 0))
+	c := mustOpen(t, Wrap(src).Decorate(Singleflight()).Decorate(Cache(10, 0, 0)))
 
 	const goroutines = 20
 	var wg sync.WaitGroup
@@ -601,7 +595,7 @@ func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
 func TestLookupFrom_SingleflightErrorMiss(t *testing.T) {
 	sentinelErr := errors.New("broken")
 	src := newBlockingSource("db", nil, sentinelErr)
-	c := mustOpen(t, WithSource(src), WithCache(10, 0, 0))
+	c := mustOpen(t, Wrap(src).Decorate(Singleflight()).Decorate(Cache(10, 0, 0)))
 
 	const goroutines = 20
 	var wg sync.WaitGroup
@@ -682,7 +676,7 @@ func (s *blockingSource) Close() error { return nil }
 // ---- SourceNames ----
 
 func TestSourceNames(t *testing.T) {
-	c := mustOpen(t, WithSource(newMockSource("alpha")), WithSource(newMockSource("beta")))
+	c := mustOpen(t, Wrap(newMockSource("alpha")), Wrap(newMockSource("beta")))
 
 	names := c.SourceNames()
 	if len(names) != 2 || names[0] != "alpha" || names[1] != "beta" {
@@ -695,7 +689,7 @@ func TestSourceNames(t *testing.T) {
 func TestWithCache_ValidSize(t *testing.T) {
 	src := newMockSource("db")
 	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
-	c := mustOpen(t, WithCache(100, 0, 0), WithSource(src))
+	c := mustOpen(t, Wrap(src).Decorate(Cache(100, 0, 0)))
 
 	_, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
@@ -709,7 +703,7 @@ func TestWithCache_ZeroSizeDisablesCache(t *testing.T) {
 	callCount := 0
 	counting := &countingSource{Source: src, counter: &callCount}
 
-	c := mustOpen(t, WithSource(counting), WithCache(0, 0, 0))
+	c := mustOpen(t, Wrap(counting))
 
 	for range 3 {
 		_, _ = c.Lookup(context.Background(), testAddr)
@@ -721,7 +715,7 @@ func TestWithCache_ZeroSizeDisablesCache(t *testing.T) {
 
 func TestWithCache_NegativeErrorTTL(t *testing.T) {
 	src := newMockSource("db")
-	_, err := Open(WithSource(src), WithCache(10, 0, -time.Second))
+	_, err := Open(Wrap(src).Decorate(Cache(10, 0, -time.Second)))
 	if err == nil {
 		t.Fatal("expected error for negative error cache TTL")
 	}
@@ -729,7 +723,7 @@ func TestWithCache_NegativeErrorTTL(t *testing.T) {
 
 func TestWithCache_NegativeResultTTL(t *testing.T) {
 	src := newMockSource("db")
-	_, err := Open(WithSource(src), WithCache(10, -time.Second, 0))
+	_, err := Open(Wrap(src).Decorate(Cache(10, -time.Second, 0)))
 	if err == nil {
 		t.Fatal("expected error for negative result cache TTL")
 	}
@@ -737,7 +731,7 @@ func TestWithCache_NegativeResultTTL(t *testing.T) {
 
 func TestWithCache_ZeroErrorTTL(t *testing.T) {
 	src := newMockSource("db")
-	c, err := Open(WithSource(src), WithCache(10, 0, 0))
+	c, err := Open(Wrap(src).Decorate(Cache(10, 0, 0)))
 	if err != nil {
 		t.Fatalf("Open() error: %v", err)
 	}
@@ -749,7 +743,7 @@ func TestWithCache_EvictsCachedEntry(t *testing.T) {
 	callCount := 0
 	counting := &countingSource{Source: src, counter: &callCount}
 
-	c := mustOpen(t, WithSource(counting), WithCache(1, 0, 0))
+	c := mustOpen(t, Wrap(counting).Decorate(Cache(1, 0, 0)))
 
 	addr1 := netip.MustParseAddr("1.1.1.1")
 	addr2 := netip.MustParseAddr("2.2.2.2")
@@ -771,8 +765,7 @@ func TestWithCache_ResultTTLExpires(t *testing.T) {
 	callCount := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src, counter: &callCount}),
-		WithCache(10, 20*time.Millisecond, 0),
+		Wrap(&countingSource{Source: src, counter: &callCount}).Decorate(Cache(10, 20*time.Millisecond, 0)),
 	)
 
 	_, _ = c.Lookup(context.Background(), testAddr)
@@ -794,8 +787,7 @@ func TestWithCache_ResultTTLZeroIsPermanent(t *testing.T) {
 	callCount := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src, counter: &callCount}),
-		WithCache(10, 0, 0),
+		Wrap(&countingSource{Source: src, counter: &callCount}).Decorate(Cache(10, 0, 0)),
 	)
 
 	for range 3 {
@@ -812,8 +804,7 @@ func TestWithCache_ResultTTLIsSlidingWindow(t *testing.T) {
 	callCount := 0
 
 	c := mustOpen(t,
-		WithSource(&countingSource{Source: src, counter: &callCount}),
-		WithCache(10, 20*time.Millisecond, 0),
+		Wrap(&countingSource{Source: src, counter: &callCount}).Decorate(Cache(10, 20*time.Millisecond, 0)),
 	)
 
 	_, _ = c.Lookup(context.Background(), testAddr) // t=0, caches with 20ms TTL
@@ -845,7 +836,7 @@ func TestWithCache_ResultTTLIsSlidingWindow(t *testing.T) {
 func TestClose_ClosesAllSources(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
-	c, err := Open(WithSource(src1), WithSource(src2))
+	c, err := Open(Wrap(src1), Wrap(src2))
 	if err != nil {
 		t.Fatalf("Open() error: %v", err)
 	}
@@ -865,7 +856,7 @@ func TestClose_PurgesCache(t *testing.T) {
 	src := newMockSource("db")
 	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
 	// Don't use mustOpen here — we call Close() manually to inspect state.
-	c, err := Open(WithSource(src), WithCache(10, 0, time.Second))
+	c, err := Open(Wrap(src).Decorate(Singleflight()).Decorate(Cache(10, 0, time.Second)))
 	if err != nil {
 		t.Fatalf("Open() error: %v", err)
 	}
@@ -905,7 +896,7 @@ func TestErrorCacheExpiresLazily(t *testing.T) {
 	lookupErr := errors.New("temporary failure")
 	src.addErr(lookupErr)
 	var callCount int
-	c := mustOpen(t, WithSource(&countingSource{Source: src, counter: &callCount}), WithCache(10, 0, 20*time.Millisecond))
+	c := mustOpen(t, Wrap(&countingSource{Source: src, counter: &callCount}).Decorate(Cache(10, 0, 20*time.Millisecond)))
 
 	if _, err := c.Lookup(context.Background(), testAddr); !errors.Is(err, lookupErr) {
 		t.Fatalf("first Lookup() error = %v, want lookupErr", err)
@@ -941,7 +932,7 @@ func (s *countCloseSource) Close() error {
 func TestClose_Idempotent(t *testing.T) {
 	closeErr := errors.New("close failed")
 	src := &countCloseSource{mockSource: newMockSource("db"), err: closeErr}
-	c, err := Open(WithSource(src))
+	c, err := Open(Wrap(src))
 	if err != nil {
 		t.Fatalf("Open() error: %v", err)
 	}
@@ -961,7 +952,7 @@ func TestClose_Idempotent(t *testing.T) {
 
 func TestClose_ConcurrentSafe(t *testing.T) {
 	src := &countCloseSource{mockSource: newMockSource("db")}
-	c, err := Open(WithSource(src))
+	c, err := Open(Wrap(src))
 	if err != nil {
 		t.Fatalf("Open() error: %v", err)
 	}
