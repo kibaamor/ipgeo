@@ -87,6 +87,25 @@ func TestOpen_DuplicateName(t *testing.T) {
 	}
 }
 
+func TestOpen_DuplicateNameFailsBeforeCreate(t *testing.T) {
+	calls := 0
+	restoreMMDBOpener(t, func(path string) (mmdbReader, error) {
+		calls++
+		return &fakeMMDBReader{}, nil
+	})
+
+	_, err := Open(
+		MMDB("dup", "city.mmdb", ""),
+		MMDB("dup", "city2.mmdb", ""),
+	)
+	if !errors.Is(err, ErrDuplicateSource) {
+		t.Fatalf("Open() error = %v, want ErrDuplicateSource", err)
+	}
+	if calls != 0 {
+		t.Fatalf("opener called %d times, want 0 (duplicate must be detected before Create)", calls)
+	}
+}
+
 func TestOpen_Success(t *testing.T) {
 	mustOpen(t, Wrap(newMockSource("db")))
 }
@@ -684,7 +703,7 @@ func TestSourceNames(t *testing.T) {
 	}
 }
 
-// ---- Options: WithCache ----
+// ---- Cache ----
 
 func TestWithCache_ValidSize(t *testing.T) {
 	src := newMockSource("db")

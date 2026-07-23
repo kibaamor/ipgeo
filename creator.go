@@ -108,6 +108,9 @@ func (c SourceCreator) Decorate(d SourceDecorator) SourceCreator {
 // wrapped source) and applying decorators in order. If a decorator fails,
 // the source built so far is closed.
 func (c SourceCreator) Create() (Source, error) {
+	if c.build == nil {
+		return nil, errors.New("ipgeo: SourceCreator has no build function")
+	}
 	src, err := c.build()
 	if err != nil {
 		return nil, err
