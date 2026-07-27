@@ -72,7 +72,7 @@ func (s *ip2locationSource) Lookup(_ context.Context, addr netip.Addr) (*Result,
 	}
 
 	if result.IsEmpty() {
-		return nil, nil
+		return nil, ErrNotFound
 	}
 	return &result, nil
 }

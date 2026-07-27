@@ -96,10 +96,7 @@ func (w *StructuredRenderer) WriteResult(result *ipgeo.Result) error {
 	if _, err := w.out.Write(data); err != nil {
 		return err
 	}
-	if err := w.out.WriteByte('\n'); err != nil {
-		return err
-	}
-	return nil
+	return w.out.WriteByte('\n')
 }
 
 func (w *StructuredRenderer) Flush() error { return w.out.Flush() }

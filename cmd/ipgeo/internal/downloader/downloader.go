@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -55,7 +56,7 @@ func New(cfg *Config) *Downloader {
 
 func (d *Downloader) Fetch(ctx context.Context, urls []string) ([]byte, error) {
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("no URLs provided")
+		return nil, errors.New("no URLs provided")
 	}
 
 	var lastErr error
@@ -114,10 +115,10 @@ type FileSpec struct {
 
 func (f FileSpec) validate() error {
 	if f.Path == "" {
-		return fmt.Errorf("path is required")
+		return errors.New("path is required")
 	}
 	if len(f.URLs) == 0 {
-		return fmt.Errorf("no URLs provided")
+		return errors.New("no URLs provided")
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ func newInfoCmd(cfg *config.Config) *cobra.Command {
 	return &cobra.Command{
 		Use:   "info",
 		Short: "Show version and configuration information",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			fmt.Printf("Version:    %s\n", version)
 			fmt.Printf("Commit:     %s\n", gitCommit)
 			fmt.Printf("Build Date: %s\n", buildDate)

@@ -50,19 +50,19 @@ func (c *Config) HTTPTimeout() time.Duration {
 }
 
 func (c *Config) HTTPRetryWaitMin() time.Duration {
-	d, err := parseRetryDuration(c.HTTP.RetryWaitMin, "retryWaitMin")
-	if err != nil || d == nil {
+	d, ok, err := parseRetryDuration(c.HTTP.RetryWaitMin, "retryWaitMin")
+	if err != nil || !ok {
 		return defaultRetryWaitMin
 	}
-	return *d
+	return d
 }
 
 func (c *Config) HTTPRetryWaitMax() time.Duration {
-	d, err := parseRetryDuration(c.HTTP.RetryWaitMax, "retryWaitMax")
-	if err != nil || d == nil {
+	d, ok, err := parseRetryDuration(c.HTTP.RetryWaitMax, "retryWaitMax")
+	if err != nil || !ok {
 		return defaultRetryWaitMax
 	}
-	return *d
+	return d
 }
 
 func (c *Config) HTTPRetryMax() int {
@@ -138,15 +138,15 @@ func (c *Config) validate() error {
 	if _, err := parseHTTPTimeout(c.HTTP.Timeout); err != nil {
 		return err
 	}
-	min, err := parseRetryDuration(c.HTTP.RetryWaitMin, "retryWaitMin")
+	retryWaitMin, minOk, err := parseRetryDuration(c.HTTP.RetryWaitMin, "retryWaitMin")
 	if err != nil {
 		return err
 	}
-	max, err := parseRetryDuration(c.HTTP.RetryWaitMax, "retryWaitMax")
+	retryWaitMax, maxOk, err := parseRetryDuration(c.HTTP.RetryWaitMax, "retryWaitMax")
 	if err != nil {
 		return err
 	}
-	if min != nil && max != nil && *min > *max {
+	if minOk && maxOk && retryWaitMin > retryWaitMax {
 		return fmt.Errorf("config http.retryWaitMin (%s) must be <= http.retryWaitMax (%s)", c.HTTP.RetryWaitMin, c.HTTP.RetryWaitMax)
 	}
 	if c.HTTP.RetryMax != nil && *c.HTTP.RetryMax < 0 {
@@ -250,16 +250,16 @@ func parseHTTPTimeout(value string) (time.Duration, error) {
 	return timeout, nil
 }
 
-func parseRetryDuration(value, fieldName string) (*time.Duration, error) {
+func parseRetryDuration(value, fieldName string) (time.Duration, bool, error) {
 	if strings.TrimSpace(value) == "" {
-		return nil, nil
+		return 0, false, nil
 	}
 	d, err := time.ParseDuration(value)
 	if err != nil {
-		return nil, fmt.Errorf("config http.%s must be a valid Go duration: %w", fieldName, err)
+		return 0, false, fmt.Errorf("config http.%s must be a valid Go duration: %w", fieldName, err)
 	}
 	if d < 0 {
-		return nil, fmt.Errorf("config http.%s must be >= 0", fieldName)
+		return 0, false, fmt.Errorf("config http.%s must be >= 0", fieldName)
 	}
-	return &d, nil
+	return d, true, nil
 }

@@ -96,7 +96,10 @@ func handleSegment(ctx context.Context, renderer output.Renderer, lookup func(co
 		return nil
 	}
 	result, err := lookup(ctx, addr.WithZone(""))
-	if err != nil || result == nil {
+	if err != nil {
+		if errors.Is(err, ipgeo.ErrNotFound) {
+			return nil
+		}
 		return err
 	}
 	return renderer.WriteResult(result)

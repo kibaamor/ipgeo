@@ -40,7 +40,7 @@ func (m *mockSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error)
 	if r, ok := m.results[addr]; ok {
 		return r, nil
 	}
-	return nil, nil
+	return nil, ErrNotFound
 }
 
 func (m *mockSource) add(ip string, r *Result) { //nolint:unparam
@@ -126,8 +126,8 @@ func TestLookup_NotFound(t *testing.T) {
 	c := mustOpen(t, Wrap(newMockSource("db")))
 
 	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
-	if err != nil {
-		t.Fatalf("Lookup() error = %v, want nil", err)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Lookup() error = %v, want ErrNotFound", err)
 	}
 	if got != nil {
 		t.Errorf("Lookup() result = %#v, want nil", got)
@@ -264,8 +264,8 @@ func TestLookupAll_NoneFound(t *testing.T) {
 	c := mustOpen(t, Wrap(newMockSource("db")))
 
 	results, err := c.LookupAll(context.Background(), testAddr)
-	if err != nil {
-		t.Fatalf("LookupAll() error = %v, want nil", err)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("LookupAll() error = %v, want ErrNotFound", err)
 	}
 	if results != nil {
 		t.Errorf("LookupAll() results = %#v, want nil", results)
@@ -383,8 +383,8 @@ func TestLookupFrom_NotFound(t *testing.T) {
 	c := mustOpen(t, Wrap(newMockSource("db")))
 
 	got, err := c.LookupFrom(context.Background(), "db", testAddr)
-	if err != nil {
-		t.Fatalf("LookupFrom() error = %v, want nil", err)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("LookupFrom() error = %v, want ErrNotFound", err)
 	}
 	if got != nil {
 		t.Fatalf("LookupFrom() result = %#v, want nil", got)

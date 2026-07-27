@@ -22,7 +22,7 @@ func TestStreamInput_ProcessesInputWithInlineRenderer(t *testing.T) {
 		if got == addr {
 			return result, nil
 		}
-		return nil, nil
+		return nil, ipgeo.ErrNotFound
 	})
 	if err != nil {
 		t.Fatalf("streamInput() error: %v", err)
@@ -42,7 +42,7 @@ func TestStreamInput_FlushesAfterEachRead(t *testing.T) {
 		if got == addr {
 			return result, nil
 		}
-		return nil, nil
+		return nil, ipgeo.ErrNotFound
 	})
 	if err != nil {
 		t.Fatalf("streamInput() error: %v", err)
@@ -81,7 +81,7 @@ func TestStreamInput_FlushesBufferedOutputAfterEOFLookupError(t *testing.T) {
 		case second:
 			return nil, lookupErr
 		default:
-			return nil, nil
+			return nil, ipgeo.ErrNotFound
 		}
 	})
 	if !errors.Is(err, lookupErr) {
@@ -97,7 +97,7 @@ func TestStreamInput_FlushesTrailingInputAfterReadError(t *testing.T) {
 	var buf bytes.Buffer
 
 	err := streamInput(context.Background(), &errAfterBytesReader{data: []byte("client=1.2.3.4"), err: readErr}, output.NewInlineRenderer(&buf), func(_ context.Context, _ netip.Addr) (*ipgeo.Result, error) {
-		return nil, nil
+		return nil, ipgeo.ErrNotFound
 	})
 	if !errors.Is(err, readErr) {
 		t.Fatalf("streamInput() error = %v, want readErr", err)

@@ -56,7 +56,7 @@ func (d *xdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) 
 		return nil, err
 	}
 	if info == "" {
-		return nil, nil
+		return nil, ErrNotFound
 	}
 
 	parts := strings.Split(info, "|")
@@ -64,7 +64,7 @@ func (d *xdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) 
 		return nil, fmt.Errorf("unexpected xdb record format: %q", info)
 	}
 
-	result := Result{
+	result := &Result{
 		ip:           addr,
 		source:       d.name,
 		country:      cleanXDBField(parts[0]),
@@ -74,7 +74,7 @@ func (d *xdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) 
 		countryCode:  cleanXDBField(parts[4]),
 	}
 	if result.IsEmpty() {
-		return nil, nil
+		return nil, ErrNotFound
 	}
-	return &result, nil
+	return result, nil
 }

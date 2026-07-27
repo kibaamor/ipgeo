@@ -172,7 +172,7 @@ func TestAddrToNetIP(t *testing.T) {
 
 func TestDatabaseSourceConstructorsWithInjectedOpeners(t *testing.T) {
 	t.Run("mmdb success with companion", func(t *testing.T) {
-		restoreMMDBOpener(t, func(path string) (mmdbReader, error) {
+		restoreMMDBOpener(t, func(_ string) (mmdbReader, error) {
 			return &fakeMMDBReader{}, nil
 		})
 		src, err := openMMDB("mmdb", "city.mmdb", "asn.mmdb")
@@ -189,7 +189,7 @@ func TestDatabaseSourceConstructorsWithInjectedOpeners(t *testing.T) {
 		sentinelErr := errors.New("companion failed")
 		primary := &fakeMMDBReader{}
 		calls := 0
-		restoreMMDBOpener(t, func(path string) (mmdbReader, error) {
+		restoreMMDBOpener(t, func(_ string) (mmdbReader, error) {
 			calls++
 			if calls == 2 {
 				return nil, sentinelErr
@@ -206,7 +206,7 @@ func TestDatabaseSourceConstructorsWithInjectedOpeners(t *testing.T) {
 	})
 
 	t.Run("ipdb language preference", func(t *testing.T) {
-		restoreIPDBOpener(t, func(path string) (ipdbReader, error) {
+		restoreIPDBOpener(t, func(_ string) (ipdbReader, error) {
 			return &fakeIPDBReader{langs: []string{"CN", "EN"}}, nil
 		})
 		src, err := openIPDB("ipdb", "city.ipdb")
@@ -219,7 +219,7 @@ func TestDatabaseSourceConstructorsWithInjectedOpeners(t *testing.T) {
 	})
 
 	t.Run("ipdb fallback language", func(t *testing.T) {
-		restoreIPDBOpener(t, func(path string) (ipdbReader, error) {
+		restoreIPDBOpener(t, func(_ string) (ipdbReader, error) {
 			return &fakeIPDBReader{langs: []string{"FR"}}, nil
 		})
 		src, err := openIPDB("ipdb", "city.ipdb")
@@ -232,7 +232,7 @@ func TestDatabaseSourceConstructorsWithInjectedOpeners(t *testing.T) {
 	})
 
 	t.Run("ipdb no languages", func(t *testing.T) {
-		restoreIPDBOpener(t, func(path string) (ipdbReader, error) {
+		restoreIPDBOpener(t, func(_ string) (ipdbReader, error) {
 			return &fakeIPDBReader{}, nil
 		})
 		_, err := openIPDB("ipdb", "city.ipdb")
@@ -242,7 +242,7 @@ func TestDatabaseSourceConstructorsWithInjectedOpeners(t *testing.T) {
 	})
 
 	t.Run("ip2location success", func(t *testing.T) {
-		restoreIP2LocationOpener(t, func(path string) (ip2locationReader, error) {
+		restoreIP2LocationOpener(t, func(_ string) (ip2locationReader, error) {
 			return &fakeIP2LocationReader{}, nil
 		})
 		src, err := openIP2Location("ip2location", "db.bin")
@@ -255,7 +255,7 @@ func TestDatabaseSourceConstructorsWithInjectedOpeners(t *testing.T) {
 	})
 
 	t.Run("xdb success", func(t *testing.T) {
-		restoreXDBOpener(t, func(v4Path, v6Path string) (xdbSearcher, error) {
+		restoreXDBOpener(t, func(_, _ string) (xdbSearcher, error) {
 			return &fakeXDBSearcher{}, nil
 		})
 		src, err := openXDB("xdb", "v4.xdb", "v6.xdb")
@@ -269,14 +269,14 @@ func TestDatabaseSourceConstructorsWithInjectedOpeners(t *testing.T) {
 }
 
 func TestDatabaseOptionsWithInjectedOpeners(t *testing.T) {
-	restoreMMDBOpener(t, func(path string) (mmdbReader, error) { return &fakeMMDBReader{}, nil })
-	restoreIPDBOpener(t, func(path string) (ipdbReader, error) {
+	restoreMMDBOpener(t, func(_ string) (mmdbReader, error) { return &fakeMMDBReader{}, nil })
+	restoreIPDBOpener(t, func(_ string) (ipdbReader, error) {
 		return &fakeIPDBReader{langs: []string{"EN"}}, nil
 	})
-	restoreIP2LocationOpener(t, func(path string) (ip2locationReader, error) {
+	restoreIP2LocationOpener(t, func(_ string) (ip2locationReader, error) {
 		return &fakeIP2LocationReader{}, nil
 	})
-	restoreXDBOpener(t, func(v4Path, v6Path string) (xdbSearcher, error) {
+	restoreXDBOpener(t, func(_, _ string) (xdbSearcher, error) {
 		return &fakeXDBSearcher{}, nil
 	})
 

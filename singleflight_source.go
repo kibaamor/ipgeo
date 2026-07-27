@@ -19,7 +19,7 @@ func newSingleflightSource(src Source) *singleflightSource {
 
 func (s *singleflightSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
 	addr = addr.Unmap()
-	ch := s.group.DoChan(addr.String(), func() (any, error) {
+	ch := s.group.DoChan(addr.String(), func() (any, error) { //nolint:contextcheck // shared lookup must not be bound to a single caller's context
 		return s.source.Lookup(context.Background(), addr)
 	})
 	select {

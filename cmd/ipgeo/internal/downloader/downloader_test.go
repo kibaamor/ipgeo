@@ -7,11 +7,11 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -114,7 +114,7 @@ func TestNewDownloader_RetryWaitMaxZeroHonored(t *testing.T) {
 
 func TestDownloadFiles_Direct(t *testing.T) {
 	payload := []byte("hello world db data")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", "19")
 		_, _ = w.Write(payload)
 	}))
@@ -145,12 +145,12 @@ func TestDownloadFiles_Direct(t *testing.T) {
 
 func TestDownloadFiles_URLFallback(t *testing.T) {
 	payload := []byte("fallback data")
-	badServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	badServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer badServer.Close()
 
-	goodServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	goodServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", "13")
 		_, _ = w.Write(payload)
 	}))
@@ -181,7 +181,7 @@ func TestDownloadFiles_URLFallback(t *testing.T) {
 }
 
 func TestDownloadFiles_AllURLsFail(t *testing.T) {
-	badServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	badServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer badServer.Close()
@@ -287,7 +287,7 @@ func TestDownloadFiles_Gzip_RawBytes(t *testing.T) {
 	}
 
 	compressed := gzBuf.Bytes()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(compressed)
 	}))
 	defer server.Close()
@@ -321,7 +321,7 @@ func TestDownloadFiles_CtxCancellationTTYProgressReturns(t *testing.T) {
 	isTTY = true
 	t.Cleanup(func() { isTTY = oldTTY })
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		<-r.Context().Done()
 	}))
 	defer server.Close()
@@ -356,7 +356,7 @@ func TestDownloadFiles_CtxCancellationTTYProgressReturns(t *testing.T) {
 }
 
 func TestDownloadFiles_CtxCancellation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		time.Sleep(5 * time.Second)
 	}))
 	defer server.Close()
@@ -406,8 +406,8 @@ func gzCompress(t *testing.T, data []byte) []byte {
 func TestDownloadFiles_AutoDecompress_Gz(t *testing.T) {
 	payload := []byte("hello world decompressed data")
 	compressed := gzCompress(t, payload)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(compressed)))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", strconv.Itoa(len(compressed)))
 		_, _ = w.Write(compressed)
 	}))
 	defer server.Close()
@@ -441,7 +441,7 @@ func TestDownloadFiles_AutoDecompress_GzSizeLimit(t *testing.T) {
 	// Use a highly compressible repeated pattern so the compressed payload stays small.
 	bigPayload := bytes.Repeat([]byte("A"), int(maxDecompressedSize)+100)
 	compressed := gzCompress(t, bigPayload)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(compressed)
 	}))
 	defer server.Close()
@@ -487,7 +487,7 @@ func TestDownloadFiles_AutoDecompress_TarGz(t *testing.T) {
 
 	compressed := gzCompress(t, tarBuf.Bytes())
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(compressed)
 	}))
 	defer server.Close()
@@ -534,7 +534,7 @@ func TestDownloadFiles_AutoDecompress_Zip(t *testing.T) {
 	}
 	compressed := zipBuf.Bytes()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(compressed)
 	}))
 	defer server.Close()
@@ -564,8 +564,8 @@ func TestDownloadFiles_AutoDecompress_Zip(t *testing.T) {
 func TestDownloadFiles_AutoDecompress_NonCompressedURL(t *testing.T) {
 	// AutoDecompress=true on a plain .mmdb URL should still work as direct download.
 	payload := []byte("hello plain mmdb")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(payload)))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", strconv.Itoa(len(payload)))
 		_, _ = w.Write(payload)
 	}))
 	defer server.Close()
@@ -623,7 +623,7 @@ func TestDownloadFiles_AutoDecompress_EntryNotFound(t *testing.T) {
 	}
 	compressed := gzBuf.Bytes()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(compressed)
 	}))
 	defer server.Close()

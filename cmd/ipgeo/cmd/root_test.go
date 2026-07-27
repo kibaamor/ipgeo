@@ -12,7 +12,7 @@ import (
 )
 
 func TestRootCmd_UpdateAndUpgradeCommands(t *testing.T) {
-	root := buildRootCmd(&config.Config{})
+	root := buildRootCmd(context.Background(), &config.Config{})
 
 	updateCmd, _, err := root.Find([]string{"update"})
 	if err != nil {
@@ -41,7 +41,7 @@ func TestRootCmd_UpdateAndUpgradeCommands(t *testing.T) {
 }
 
 func TestRootCmd_InvalidSourceNameReturnsSourceNameError(t *testing.T) {
-	root := buildRootCmd(&config.Config{
+	root := buildRootCmd(context.Background(), &config.Config{
 		Sources: []config.SourceEntry{
 			{
 				Name:     "Configured",
@@ -97,7 +97,7 @@ updater:
 	}
 
 	out := captureStdout(t, func() {
-		root := buildRootCmd(cfg)
+		root := buildRootCmd(context.Background(), cfg)
 		root.SetArgs([]string{"info"})
 		if err := root.Execute(); err != nil {
 			t.Fatal(err)

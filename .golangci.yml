@@ -3,58 +3,56 @@ version: "2"
 linters:
   default: standard
   enable:
-    - misspell      # catch spelling mistakes in comments and strings
-    - gocritic      # miscellaneous code checks
-    - revive        # idiomatic Go checks (replaces golint)
-    - prealloc      # suggest slice pre-allocation
-    - errorlint     # find problems with error wrapping
-    - unconvert     # remove unnecessary type conversions
-    - gosec         # security checks
-    - noctx         # find http.Get/Post without context
-    - unparam       # find function params that never change
-    - unused        # find unused constants, variables, functions and types
-    - ineffassign   # detect assignments to variables never used afterwards
-    - bodyclose     # check HTTP response body is closed
-    - nilerr        # find code returning nil despite a non-nil error check
-    - makezero      # find slice declarations with non-zero initial length
-    - exhaustive    # check exhaustiveness of enum switch statements
-    - modernize     # suggest simplifications using modern Go language and library features
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - errorlint
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    - contextcheck
+    - copyloopvar
+    - misspell
+    - revive
+    - unconvert
+    - unparam
+    - wastedassign
+    - durationcheck
+    - nilerr
+    - nilnil
+    - modernize
+    - exptostd
+    - intrange
+    - usestdlibvars
+    - perfsprint
 
   settings:
     revive:
       rules:
-        - name: exported
-          disabled: true  # don't require doc comments on all exported symbols
-
-    errcheck:
-      # Suppress unchecked-error warnings for calls whose errors are
-      # intentionally not checked per standard Go conventions.
-      exclude-functions:
-        # HTTP body is a read-only stream; close errors don't matter.
-        - (io.ReadCloser).Close
-        # Temp-file and failed-extraction cleanup: removal failure is benign.
-        - os.Remove
-
-    gosec:
-      excludes:
-        # Config file path comes from the user's environment — intentional.
-        - G304
-        # 0755 is the correct permission for directories.
-        - G301
-        # Config files are user-readable; 0644 is correct.
-        - G306
-        # HTTP requests with variable URLs are intentional (download manager).
-        - G107
-        # The self-updater downloads a trusted binary and must chmod it 0755.
-        - G302
-        # Decompression from trusted GitHub release assets; DoS not a concern.
-        - G110
-
-    gocritic:
-      disabled-checks:
-        - appendAssign   # false positives on append patterns we use intentionally
+        - name: atomic
+        - name: empty-block
+        - name: error-return
+        - name: error-strings
+        - name: if-return
+        - name: increment-decrement
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: waitgroup-by-value
 
 formatters:
   enable:
-    - gofumpt   # stricter superset of gofmt; covers all gofmt rules plus more
+    - gofumpt # stricter superset of gofmt; covers all gofmt rules plus more
     - goimports # enforce import grouping and ordering
+  settings:
+    gofumpt:
+      extra-rules: true
+      module-path: ipgeo
+    goimports:
+      local-prefixes:
+        - ipgeo

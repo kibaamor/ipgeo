@@ -59,7 +59,7 @@ func (i *ipdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error)
 	info, err := i.db.FindInfo(addr.String(), i.lang)
 	if err != nil {
 		if errors.Is(err, ipdb.ErrDataNotExists) {
-			return nil, nil
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (i *ipdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error)
 	}
 
 	if result.IsEmpty() {
-		return nil, nil
+		return nil, ErrNotFound
 	}
 	return &result, nil
 }

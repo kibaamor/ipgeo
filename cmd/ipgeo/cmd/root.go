@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func buildRootCmd(cfg *config.Config) *cobra.Command {
+func buildRootCmd(ctx context.Context, cfg *config.Config) *cobra.Command {
 	var (
 		jsonMode   bool
 		sourceName string
@@ -23,8 +23,8 @@ func buildRootCmd(cfg *config.Config) *cobra.Command {
 		Args:          cobra.ArbitraryArgs,
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return clirun.Run(cmd.Context(), clirun.Options{
+		RunE: func(_ *cobra.Command, args []string) error {
+			return clirun.Run(ctx, clirun.Options{
 				Config:     cfg,
 				Args:       args,
 				JSONMode:   jsonMode,
@@ -41,8 +41,8 @@ func buildRootCmd(cfg *config.Config) *cobra.Command {
 	root.Flags().StringVarP(&outputFile, "output", "o", "", "Write output to `file` instead of stdout")
 
 	root.AddCommand(newInfoCmd(cfg))
-	root.AddCommand(newUpdateCmd(cfg))
-	if cmd := newUpgradeCmd(cfg); cmd != nil {
+	root.AddCommand(newUpdateCmd(ctx, cfg))
+	if cmd := newUpgradeCmd(ctx, cfg); cmd != nil {
 		root.AddCommand(cmd)
 	}
 
@@ -54,5 +54,5 @@ func Execute(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return buildRootCmd(cfg).ExecuteContext(ctx)
+	return buildRootCmd(ctx, cfg).ExecuteContext(ctx)
 }

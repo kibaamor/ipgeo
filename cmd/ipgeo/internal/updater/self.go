@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -155,7 +156,7 @@ func downloadBinary(ctx context.Context, d *downloader.Downloader, assetURL, ass
 	if err := archive.Close(); err != nil {
 		return "", nil, fmt.Errorf("close archive: %w", err)
 	}
-	if actualHex := fmt.Sprintf("%x", h.Sum(nil)); actualHex != expectedHex {
+	if actualHex := hex.EncodeToString(h.Sum(nil)); actualHex != expectedHex {
 		return "", nil, fmt.Errorf("sha256 mismatch for %s: expected %s got %s", assetName, expectedHex, actualHex)
 	}
 

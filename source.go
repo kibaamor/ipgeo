@@ -8,7 +8,7 @@ import (
 // Source is the interface for IP geolocation data providers.
 type Source interface {
 	// Lookup returns geolocation data for addr.
-	// Missing records return a nil Result with a nil error.
+	// Missing records return a nil Result and ErrNotFound.
 	// ctx is respected: a cancelled context yields a context error and is not
 	// cached by wrapping layers.
 	Lookup(ctx context.Context, addr netip.Addr) (*Result, error)

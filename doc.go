@@ -9,6 +9,6 @@
 // A Client is safe for concurrent use. Close is idempotent and safe from
 // concurrent goroutines, but must not be called concurrently with a query.
 //
-// Open and LookupFrom return sentinel errors (ErrNoSources,
-// ErrDuplicateSource, ErrSourceNotConfigured) for use with errors.Is.
+// Open, Lookup, LookupAll, and LookupFrom return sentinel errors (ErrNoSources,
+// ErrDuplicateSource, ErrSourceNotConfigured, ErrNotFound) for use with errors.Is.
 package ipgeo

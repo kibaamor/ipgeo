@@ -18,7 +18,7 @@ type cachedSource struct {
 
 func newCachedSource(src Source, maxEntries uint, resultTTL, errorTTL time.Duration) (*cachedSource, error) {
 	if maxEntries == 0 {
-		return nil, fmt.Errorf("ipgeo: create cache: maxEntries must be positive, got 0")
+		return nil, errors.New("ipgeo: create cache: maxEntries must be positive, got 0")
 	}
 	if resultTTL < 0 {
 		return nil, fmt.Errorf("ipgeo: create cache: resultTTL must not be negative, got %s", resultTTL)
@@ -47,12 +47,16 @@ func newCachedSource(src Source, maxEntries uint, resultTTL, errorTTL time.Durat
 
 func (s *cachedSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
 	addr = addr.Unmap()
-	if result, err, ok := s.lookupCache(addr); ok {
+	if ok, result, err := s.lookupCache(addr); ok {
 		return result, err
 	}
 
 	result, lookupErr := s.source.Lookup(ctx, addr)
 	if lookupErr != nil {
+		if errors.Is(lookupErr, ErrNotFound) {
+			s.results.Set(addr, nil, ttlcache.DefaultTTL)
+			return nil, lookupErr
+		}
 		if s.errors != nil && !isContextError(lookupErr) {
 			s.errors.Set(addr, lookupErr, ttlcache.DefaultTTL)
 		}
@@ -66,17 +70,19 @@ func isContextError(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
-func (s *cachedSource) lookupCache(addr netip.Addr) (*Result, error, bool) {
+func (s *cachedSource) lookupCache(addr netip.Addr) (bool, *Result, error) {
 	if item := s.results.Get(addr); item != nil {
-		result := item.Value()
-		return result, nil, true
+		if result := item.Value(); result != nil {
+			return true, result, nil
+		}
+		return true, nil, ErrNotFound
 	}
 	if s.errors != nil {
 		if item := s.errors.Get(addr); item != nil {
-			return nil, item.Value(), true
+			return true, nil, item.Value()
 		}
 	}
-	return nil, nil, false
+	return false, nil, nil
 }
 
 func (s *cachedSource) Name() string {

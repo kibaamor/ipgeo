@@ -137,7 +137,7 @@ func (m *mmdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error)
 	}
 
 	if result.IsEmpty() {
-		return nil, nil
+		return nil, ErrNotFound
 	}
 	return &result, nil
 }

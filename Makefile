@@ -13,8 +13,6 @@ LDFLAGS   = -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.version=$(VERSION) \
             -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.gitCommit=$(GIT_COMMIT) \
             -X github.com/kibaamor/ipgeo/cmd/ipgeo/cmd.buildDate=$(BUILD_DATE)
 
-LINT_CMD = cd ./cmd/ipgeo && golangci-lint run
-
 .PHONY: build clean test coverage tidy lint lint-fix
 
 build:
@@ -51,8 +49,8 @@ tidy:
 
 lint:
 	golangci-lint run ./...
-	$(LINT_CMD) ./...
+	cd ./cmd/ipgeo && golangci-lint run --config ../../.golangci.yml ./...
 
 lint-fix:
 	golangci-lint run --fix ./...
-	$(LINT_CMD) --fix ./...
+	cd ./cmd/ipgeo && golangci-lint run --fix --config ../../.golangci.yml ./...

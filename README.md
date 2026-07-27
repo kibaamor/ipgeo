@@ -91,6 +91,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 
@@ -110,11 +111,11 @@ func main() {
 
 	result, err := client.Lookup(context.Background(), netip.MustParseAddr("1.1.1.1"))
 	if err != nil {
+		if errors.Is(err, ipgeo.ErrNotFound) {
+			fmt.Println("not found")
+			return
+		}
 		panic(err)
-	}
-	if result == nil {
-		fmt.Println("not found")
-		return
 	}
 
 	fmt.Println(result)
@@ -140,9 +141,12 @@ Lookup methods (each accepts a `context.Context` for cancellation/timeout):
 - `LookupAll` returns every result found.
 - `LookupFrom` queries one named source.
 
+When no source has a matching record, `Lookup`, `LookupAll`, and `LookupFrom`
+return `ErrNotFound`; test it with `errors.Is`.
+
 A `Client` is safe for concurrent use. `Close` is idempotent. Common failures
 are exported as sentinel errors (`ErrNoSources`, `ErrDuplicateSource`,
-`ErrSourceNotConfigured`).
+`ErrSourceNotConfigured`, `ErrNotFound`).
 
 ## Issues
 

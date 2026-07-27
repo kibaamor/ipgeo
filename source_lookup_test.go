@@ -41,7 +41,7 @@ func TestMMDBSourceLookupErrors(t *testing.T) {
 	}{
 		{name: "primary error", src: &mmdbSource{db: &fakeMMDBReader{err: sentinelErr}}, want: sentinelErr},
 		{name: "companion error", src: &mmdbSource{db: &fakeMMDBReader{record: cityRecord{AutonomousSystemNumber: 1}}, companion: &fakeMMDBReader{err: sentinelErr}}, want: sentinelErr},
-		{name: "empty result", src: &mmdbSource{db: &fakeMMDBReader{}}},
+		{name: "empty result", src: &mmdbSource{db: &fakeMMDBReader{}}, want: ErrNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -124,8 +124,8 @@ func TestIPDBSourceLookupErrors(t *testing.T) {
 		want error
 	}{
 		{name: "lookup error", src: &ipdbSource{db: &fakeIPDBReader{err: sentinelErr}, lang: "EN"}, want: sentinelErr},
-		{name: "data missing", src: &ipdbSource{db: &fakeIPDBReader{err: ipdb.ErrDataNotExists}, lang: "EN"}},
-		{name: "empty result", src: &ipdbSource{db: &fakeIPDBReader{info: &ipdb.CityInfo{}}, lang: "EN"}},
+		{name: "data missing", src: &ipdbSource{db: &fakeIPDBReader{err: ipdb.ErrDataNotExists}, lang: "EN"}, want: ErrNotFound},
+		{name: "empty result", src: &ipdbSource{db: &fakeIPDBReader{info: &ipdb.CityInfo{}}, lang: "EN"}, want: ErrNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -183,7 +183,7 @@ func TestIP2LocationSourceLookupErrors(t *testing.T) {
 		want error
 	}{
 		{name: "lookup error", src: &ip2locationSource{db: &fakeIP2LocationReader{err: sentinelErr}}, want: sentinelErr},
-		{name: "empty result", src: &ip2locationSource{db: &fakeIP2LocationReader{}}},
+		{name: "empty result", src: &ip2locationSource{db: &fakeIP2LocationReader{}}, want: ErrNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -234,9 +234,9 @@ func TestXDBSourceLookupErrors(t *testing.T) {
 		wantErr string
 	}{
 		{name: "lookup error", src: &xdbSource{searcher: &fakeXDBSearcher{err: sentinelErr}}, wantErr: sentinelErr.Error()},
-		{name: "empty result", src: &xdbSource{searcher: &fakeXDBSearcher{}}},
+		{name: "empty result", src: &xdbSource{searcher: &fakeXDBSearcher{}}, wantErr: ErrNotFound.Error()},
 		{name: "unexpected format", src: &xdbSource{searcher: &fakeXDBSearcher{info: "too|short"}}, wantErr: "unexpected xdb record format"},
-		{name: "empty fields", src: &xdbSource{searcher: &fakeXDBSearcher{info: "0|0|0|0|0"}}},
+		{name: "empty fields", src: &xdbSource{searcher: &fakeXDBSearcher{info: "0|0|0|0|0"}}, wantErr: ErrNotFound.Error()},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
