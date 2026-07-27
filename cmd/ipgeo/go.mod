@@ -8,10 +8,10 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/kibaamor/ipgeo v0.0.0
 	github.com/kibaamor/ipstream v1.0.0
-	github.com/mattn/go-isatty v0.0.23
+	github.com/mattn/go-isatty v0.0.24
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.2
-	github.com/vbauerster/mpb/v8 v8.13.0
+	github.com/vbauerster/mpb/v8 v8.14.0
 	golang.org/x/sys v0.47.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -27,9 +27,10 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.1 // indirect
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20260709160242-cd40e3a1d532 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
-	github.com/mattn/go-runewidth v0.0.24 // indirect
+	github.com/mattn/go-runewidth v0.0.27 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
+	github.com/vbauerster/cupwriter v0.0.4 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	lukechampine.com/uint128 v1.3.0 // indirect
