@@ -16,13 +16,13 @@ import (
 func TestStreamInput_ProcessesInputWithInlineRenderer(t *testing.T) {
 	var buf bytes.Buffer
 	addr := netip.MustParseAddr("1.2.3.4")
-	result := ipgeo.NewResult(addr, "db", "CN", "China", "", "", "", 0)
+	result := ipgeo.Result{IP: addr, Source: "db", CountryCode: "CN", Country: "China"}
 
-	err := streamInput(context.Background(), strings.NewReader("client=1.2.3.4"), output.NewInlineRenderer(&buf), func(_ context.Context, got netip.Addr) (*ipgeo.Result, error) {
+	err := streamInput(context.Background(), strings.NewReader("client=1.2.3.4"), output.NewInlineRenderer(&buf), func(_ context.Context, got netip.Addr) (ipgeo.Result, error) {
 		if got == addr {
 			return result, nil
 		}
-		return nil, ipgeo.ErrNotFound
+		return ipgeo.Result{}, ipgeo.ErrNotFound
 	})
 	if err != nil {
 		t.Fatalf("streamInput() error: %v", err)
@@ -34,15 +34,15 @@ func TestStreamInput_ProcessesInputWithInlineRenderer(t *testing.T) {
 
 func TestStreamInput_FlushesAfterEachRead(t *testing.T) {
 	addr := netip.MustParseAddr("1.2.3.4")
-	result := ipgeo.NewResult(addr, "db", "CN", "China", "", "", "", 0)
+	result := ipgeo.Result{IP: addr, Source: "db", CountryCode: "CN", Country: "China"}
 	renderer := &flushProbeRenderer{}
 	reader := &flushProbeReader{renderer: renderer, data: []byte("client=1.2.3.4\n")}
 
-	err := streamInput(context.Background(), reader, renderer, func(_ context.Context, got netip.Addr) (*ipgeo.Result, error) {
+	err := streamInput(context.Background(), reader, renderer, func(_ context.Context, got netip.Addr) (ipgeo.Result, error) {
 		if got == addr {
 			return result, nil
 		}
-		return nil, ipgeo.ErrNotFound
+		return ipgeo.Result{}, ipgeo.ErrNotFound
 	})
 	if err != nil {
 		t.Fatalf("streamInput() error: %v", err)
@@ -56,8 +56,8 @@ func TestStreamInput_PropagatesLookupError(t *testing.T) {
 	lookupErr := errors.New("lookup failed")
 	var buf bytes.Buffer
 
-	err := streamInput(context.Background(), strings.NewReader("before 1.2.3.4 after 2.3.4.5"), output.NewInlineRenderer(&buf), func(_ context.Context, _ netip.Addr) (*ipgeo.Result, error) {
-		return nil, lookupErr
+	err := streamInput(context.Background(), strings.NewReader("before 1.2.3.4 after 2.3.4.5"), output.NewInlineRenderer(&buf), func(_ context.Context, _ netip.Addr) (ipgeo.Result, error) {
+		return ipgeo.Result{}, lookupErr
 	})
 	if !errors.Is(err, lookupErr) {
 		t.Fatalf("streamInput() error = %v, want lookupErr", err)
@@ -72,16 +72,16 @@ func TestStreamInput_FlushesBufferedOutputAfterEOFLookupError(t *testing.T) {
 	var buf bytes.Buffer
 	first := netip.MustParseAddr("1.2.3.4")
 	second := netip.MustParseAddr("2.3.4.5")
-	result := ipgeo.NewResult(first, "db", "CN", "China", "", "", "", 0)
+	result := ipgeo.Result{IP: first, Source: "db", CountryCode: "CN", Country: "China"}
 
-	err := streamInput(context.Background(), strings.NewReader("first 1.2.3.4 second 2.3.4.5"), output.NewStructuredRenderer(&buf), func(_ context.Context, addr netip.Addr) (*ipgeo.Result, error) {
+	err := streamInput(context.Background(), strings.NewReader("first 1.2.3.4 second 2.3.4.5"), output.NewStructuredRenderer(&buf), func(_ context.Context, addr netip.Addr) (ipgeo.Result, error) {
 		switch addr {
 		case first:
 			return result, nil
 		case second:
-			return nil, lookupErr
+			return ipgeo.Result{}, lookupErr
 		default:
-			return nil, ipgeo.ErrNotFound
+			return ipgeo.Result{}, ipgeo.ErrNotFound
 		}
 	})
 	if !errors.Is(err, lookupErr) {
@@ -96,8 +96,8 @@ func TestStreamInput_FlushesTrailingInputAfterReadError(t *testing.T) {
 	readErr := errors.New("read failed")
 	var buf bytes.Buffer
 
-	err := streamInput(context.Background(), &errAfterBytesReader{data: []byte("client=1.2.3.4"), err: readErr}, output.NewInlineRenderer(&buf), func(_ context.Context, _ netip.Addr) (*ipgeo.Result, error) {
-		return nil, ipgeo.ErrNotFound
+	err := streamInput(context.Background(), &errAfterBytesReader{data: []byte("client=1.2.3.4"), err: readErr}, output.NewInlineRenderer(&buf), func(_ context.Context, _ netip.Addr) (ipgeo.Result, error) {
+		return ipgeo.Result{}, ipgeo.ErrNotFound
 	})
 	if !errors.Is(err, readErr) {
 		t.Fatalf("streamInput() error = %v, want readErr", err)
@@ -145,7 +145,7 @@ type flushProbeRenderer struct {
 
 func (r *flushProbeRenderer) WriteRaw([]byte) error { return nil }
 
-func (r *flushProbeRenderer) WriteResult(*ipgeo.Result) error { return nil }
+func (r *flushProbeRenderer) WriteResult(ipgeo.Result) error { return nil }
 
 func (r *flushProbeRenderer) Flush() error {
 	r.flushes++

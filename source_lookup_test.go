@@ -24,7 +24,7 @@ func TestMMDBSourceLookup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
-	if result.CountryCode() != "CN" || result.Country() != "China" || result.ASN() != 4134 || result.Organization() != "ChinaNet" {
+	if result.CountryCode != "CN" || result.Country != "China" || result.ASN != 4134 || result.Organization != "ChinaNet" {
 		t.Fatalf("result = %#v", result)
 	}
 	if !primary.ip.Equal(net.IPv4(1, 2, 3, 4)) || !companion.ip.Equal(net.IPv4(1, 2, 3, 4)) {
@@ -45,13 +45,10 @@ func TestMMDBSourceLookupErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.src.Lookup(context.Background(), testAddr)
+			_, err := tt.src.Lookup(context.Background(), testAddr)
 			if tt.want == nil {
 				if err != nil {
 					t.Fatalf("Lookup() error = %v, want nil", err)
-				}
-				if result != nil {
-					t.Fatalf("Lookup() result = %#v, want nil", result)
 				}
 				return
 			}
@@ -106,8 +103,8 @@ func TestIPDBSourceLookup(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Lookup() error: %v", err)
 			}
-			if result.ASN() != tt.asn {
-				t.Fatalf("ASN() = %d, want %d", result.ASN(), tt.asn)
+			if result.ASN != tt.asn {
+				t.Fatalf("ASN = %d, want %d", result.ASN, tt.asn)
 			}
 			if reader.addr != testAddr.String() || reader.lang != "EN" {
 				t.Fatalf("FindInfo called with %q/%q", reader.addr, reader.lang)
@@ -129,13 +126,10 @@ func TestIPDBSourceLookupErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.src.Lookup(context.Background(), testAddr)
+			_, err := tt.src.Lookup(context.Background(), testAddr)
 			if tt.want == nil {
 				if err != nil {
 					t.Fatalf("Lookup() error = %v, want nil", err)
-				}
-				if result != nil {
-					t.Fatalf("Lookup() result = %#v, want nil", result)
 				}
 				return
 			}
@@ -161,7 +155,7 @@ func TestIP2LocationSourceLookup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
-	if result.CountryCode() != "CN" || result.ASN() != 4134 {
+	if result.CountryCode != "CN" || result.ASN != 4134 {
 		t.Fatalf("result = %#v", result)
 	}
 	if reader.addr != testAddr.String() {
@@ -187,13 +181,10 @@ func TestIP2LocationSourceLookupErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.src.Lookup(context.Background(), testAddr)
+			_, err := tt.src.Lookup(context.Background(), testAddr)
 			if tt.want == nil {
 				if err != nil {
 					t.Fatalf("Lookup() error = %v, want nil", err)
-				}
-				if result != nil {
-					t.Fatalf("Lookup() result = %#v, want nil", result)
 				}
 				return
 			}
@@ -212,7 +203,7 @@ func TestXDBSourceLookup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
-	if result.Country() != "China" || result.Province() != "Beijing" || result.City() != "Haidian" || result.Organization() != "ChinaNet" || result.CountryCode() != "CN" {
+	if result.Country != "China" || result.Province != "Beijing" || result.City != "Haidian" || result.Organization != "ChinaNet" || result.CountryCode != "CN" {
 		t.Fatalf("result = %#v", result)
 	}
 	if reader.ip != testAddr.String() {
@@ -240,13 +231,10 @@ func TestXDBSourceLookupErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.src.Lookup(context.Background(), testAddr)
+			_, err := tt.src.Lookup(context.Background(), testAddr)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("Lookup() error = %v, want nil", err)
-				}
-				if result != nil {
-					t.Fatalf("Lookup() result = %#v, want nil", result)
 				}
 				return
 			}

@@ -59,7 +59,7 @@ func TestNewRenderer_StdoutPreservesTerminalDescriptor(t *testing.T) {
 func TestColoredFormatter_FormatAnnotation_Empty(t *testing.T) {
 	f := newColoredFormatter(io.Discard)
 	addr := netip.MustParseAddr("1.2.3.4")
-	empty := ipgeo.NewResult(addr, "db", "", "", "", "", "", 0)
+	empty := ipgeo.Result{IP: addr, Source: "db"}
 	if got := f.formatAnnotation(empty); got != "" {
 		t.Errorf("FormatAnnotation with empty result should return empty string, got %q", got)
 	}
@@ -68,7 +68,7 @@ func TestColoredFormatter_FormatAnnotation_Empty(t *testing.T) {
 func TestColoredFormatter_FormatAnnotation_WithResults(t *testing.T) {
 	f := newColoredFormatter(io.Discard)
 	addr := netip.MustParseAddr("1.2.3.4")
-	r := ipgeo.NewResult(addr, "db", "CN", "China", "", "", "", 0)
+	r := ipgeo.Result{IP: addr, Source: "db", CountryCode: "CN", Country: "China"}
 	if got := f.formatAnnotation(r); !strings.Contains(got, "China") {
 		t.Errorf("FormatAnnotation should contain result data, got %q", got)
 	}
@@ -94,7 +94,7 @@ func TestInlineRenderer_HandleLine_WithIP(t *testing.T) {
 	w := NewInlineRenderer(&buf)
 	line := "connection from 1.2.3.4 to server"
 	addr := netip.MustParseAddr("1.2.3.4")
-	result := ipgeo.NewResult(addr, "db", "CN", "China", "", "", "", 0)
+	result := ipgeo.Result{IP: addr, Source: "db", CountryCode: "CN", Country: "China"}
 
 	if err := w.WriteRaw([]byte(line + "\n")); err != nil {
 		t.Fatalf("WriteRaw() error: %v", err)

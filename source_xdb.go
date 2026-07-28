@@ -50,31 +50,31 @@ func cleanXDBField(s string) string {
 	return s
 }
 
-func (d *xdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
+func (d *xdbSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) {
 	info, err := d.searcher.Search(addr.String())
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 	if info == "" {
-		return nil, ErrNotFound
+		return Result{}, ErrNotFound
 	}
 
 	parts := strings.Split(info, "|")
 	if len(parts) < 5 {
-		return nil, fmt.Errorf("unexpected xdb record format: %q", info)
+		return Result{}, fmt.Errorf("unexpected xdb record format: %q", info)
 	}
 
-	result := &Result{
-		ip:           addr,
-		source:       d.name,
-		country:      cleanXDBField(parts[0]),
-		province:     cleanXDBField(parts[1]),
-		city:         cleanXDBField(parts[2]),
-		organization: cleanXDBField(parts[3]),
-		countryCode:  cleanXDBField(parts[4]),
+	result := Result{
+		IP:           addr,
+		Source:       d.name,
+		Country:      cleanXDBField(parts[0]),
+		Province:     cleanXDBField(parts[1]),
+		City:         cleanXDBField(parts[2]),
+		Organization: cleanXDBField(parts[3]),
+		CountryCode:  cleanXDBField(parts[4]),
 	}
 	if result.IsEmpty() {
-		return nil, ErrNotFound
+		return Result{}, ErrNotFound
 	}
 	return result, nil
 }

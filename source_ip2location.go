@@ -49,30 +49,30 @@ func cleanIP2LocationField(s string) string {
 	return s
 }
 
-func (s *ip2locationSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
+func (s *ip2locationSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) {
 	rec, err := s.db.Get_all(addr.String())
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 
 	result := Result{
-		ip:           addr,
-		source:       s.name,
-		countryCode:  cleanIP2LocationField(rec.Country_short),
-		country:      cleanIP2LocationField(rec.Country_long),
-		province:     cleanIP2LocationField(rec.Region),
-		city:         cleanIP2LocationField(rec.City),
-		organization: cleanIP2LocationField(rec.Isp),
+		IP:           addr,
+		Source:       s.name,
+		CountryCode:  cleanIP2LocationField(rec.Country_short),
+		Country:      cleanIP2LocationField(rec.Country_long),
+		Province:     cleanIP2LocationField(rec.Region),
+		City:         cleanIP2LocationField(rec.City),
+		Organization: cleanIP2LocationField(rec.Isp),
 	}
 	if asnStr := cleanIP2LocationField(rec.Asn); asnStr != "" {
 		asnStr = strings.TrimPrefix(asnStr, "AS")
 		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
-			result.asn = uint32(n)
+			result.ASN = uint32(n)
 		}
 	}
 
 	if result.IsEmpty() {
-		return nil, ErrNotFound
+		return Result{}, ErrNotFound
 	}
-	return &result, nil
+	return result, nil
 }

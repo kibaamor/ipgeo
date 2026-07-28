@@ -12,7 +12,7 @@ import (
 
 type Renderer interface {
 	WriteRaw(raw []byte) error
-	WriteResult(result *ipgeo.Result) error
+	WriteResult(result ipgeo.Result) error
 	Flush() error
 }
 
@@ -63,7 +63,7 @@ func (w *InlineRenderer) WriteRaw(raw []byte) error {
 }
 
 // WriteResult annotates recognized IP addresses.
-func (w *InlineRenderer) WriteResult(result *ipgeo.Result) error {
+func (w *InlineRenderer) WriteResult(result ipgeo.Result) error {
 	if ann := w.formatter.formatAnnotation(result); ann != "" {
 		if _, err := fmt.Fprint(w.out, " ", ann); err != nil {
 			return err
@@ -88,7 +88,11 @@ func NewStructuredRenderer(out io.Writer) *StructuredRenderer {
 func (w *StructuredRenderer) WriteRaw([]byte) error { return nil }
 
 // WriteResult writes one formatted lookup result.
-func (w *StructuredRenderer) WriteResult(result *ipgeo.Result) error {
+// Empty results are suppressed to mirror InlineRenderer's behavior.
+func (w *StructuredRenderer) WriteResult(result ipgeo.Result) error {
+	if result.IsEmpty() {
+		return nil
+	}
 	data, err := json.Marshal(result)
 	if err != nil {
 		return err

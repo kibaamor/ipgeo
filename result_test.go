@@ -10,8 +10,8 @@ var addr1 = netip.MustParseAddr("1.2.3.4")
 
 // helpers
 
-func makeResult(countryCode, country, province, city, organization string, asn uint32) *Result {
-	return NewResult(addr1, "test", countryCode, country, province, city, organization, asn)
+func makeResult(countryCode, country, province, city, organization string, asn uint32) Result {
+	return Result{IP: addr1, Source: "test", CountryCode: countryCode, Country: country, Province: province, City: city, Organization: organization, ASN: asn}
 }
 
 // ---- IsEmpty ----
@@ -19,12 +19,12 @@ func makeResult(countryCode, country, province, city, organization string, asn u
 func TestIsEmpty(t *testing.T) {
 	tests := []struct {
 		name  string
-		r     *Result
+		r     Result
 		empty bool
 	}{
-		{"zero value", &Result{}, true},
-		{"only ip set", &Result{ip: addr1}, true},
-		{"only source set", &Result{source: "x"}, true},
+		{"zero value", Result{}, true},
+		{"only ip set", Result{IP: addr1}, true},
+		{"only source set", Result{Source: "x"}, true},
 		{"countryCode set", makeResult("CN", "", "", "", "", 0), false},
 		{"country set", makeResult("", "China", "", "", "", 0), false},
 		{"province set", makeResult("", "", "Beijing", "", "", 0), false},
@@ -47,12 +47,12 @@ func TestIsEmpty(t *testing.T) {
 func TestString(t *testing.T) {
 	tests := []struct {
 		name     string
-		r        *Result
+		r        Result
 		expected string
 	}{
 		{
 			name:     "empty result",
-			r:        &Result{},
+			r:        Result{},
 			expected: "",
 		},
 		{
@@ -161,40 +161,40 @@ func TestString(t *testing.T) {
 	}
 }
 
-// ---- Getters ----
+// ---- Fields ----
 
-func TestGetters(t *testing.T) {
-	r := NewResult(addr1, "src", "CN", "China", "Beijing", "Haidian", "ChinaNet", 4134)
-	if r.IP() != addr1 {
-		t.Errorf("IP() = %v, want %v", r.IP(), addr1)
+func TestFields(t *testing.T) {
+	r := Result{IP: addr1, Source: "src", CountryCode: "CN", Country: "China", Province: "Beijing", City: "Haidian", Organization: "ChinaNet", ASN: 4134}
+	if r.IP != addr1 {
+		t.Errorf("IP = %v, want %v", r.IP, addr1)
 	}
-	if r.Source() != "src" {
-		t.Errorf("Source() = %q, want %q", r.Source(), "src")
+	if r.Source != "src" {
+		t.Errorf("Source = %q, want %q", r.Source, "src")
 	}
-	if r.CountryCode() != "CN" {
-		t.Errorf("CountryCode() = %q, want %q", r.CountryCode(), "CN")
+	if r.CountryCode != "CN" {
+		t.Errorf("CountryCode = %q, want %q", r.CountryCode, "CN")
 	}
-	if r.Country() != "China" {
-		t.Errorf("Country() = %q, want %q", r.Country(), "China")
+	if r.Country != "China" {
+		t.Errorf("Country = %q, want %q", r.Country, "China")
 	}
-	if r.Province() != "Beijing" {
-		t.Errorf("Province() = %q, want %q", r.Province(), "Beijing")
+	if r.Province != "Beijing" {
+		t.Errorf("Province = %q, want %q", r.Province, "Beijing")
 	}
-	if r.City() != "Haidian" {
-		t.Errorf("City() = %q, want %q", r.City(), "Haidian")
+	if r.City != "Haidian" {
+		t.Errorf("City = %q, want %q", r.City, "Haidian")
 	}
-	if r.Organization() != "ChinaNet" {
-		t.Errorf("Organization() = %q, want %q", r.Organization(), "ChinaNet")
+	if r.Organization != "ChinaNet" {
+		t.Errorf("Organization = %q, want %q", r.Organization, "ChinaNet")
 	}
-	if r.ASN() != 4134 {
-		t.Errorf("ASN() = %d, want %d", r.ASN(), 4134)
+	if r.ASN != 4134 {
+		t.Errorf("ASN = %d, want %d", r.ASN, 4134)
 	}
 }
 
 // ---- MarshalJSON ----
 
 func TestMarshalJSON(t *testing.T) {
-	r := NewResult(addr1, "src", "CN", "China", "Beijing", "Haidian", "ChinaNet", 4134)
+	r := Result{IP: addr1, Source: "src", CountryCode: "CN", Country: "China", Province: "Beijing", City: "Haidian", Organization: "ChinaNet", ASN: 4134}
 	data, err := json.Marshal(r)
 	if err != nil {
 		t.Fatalf("MarshalJSON error: %v", err)
@@ -235,7 +235,7 @@ func TestMarshalJSON(t *testing.T) {
 }
 
 func TestMarshalJSON_OmitEmpty(t *testing.T) {
-	r := NewResult(addr1, "", "", "", "", "", "", 0)
+	r := Result{IP: addr1}
 	data, err := json.Marshal(r)
 	if err != nil {
 		t.Fatalf("MarshalJSON error: %v", err)
@@ -271,10 +271,26 @@ func TestMarshalJSON_ZeroValueIncludesOnlyInvalidIP(t *testing.T) {
 	}
 }
 
-// ---- NewResult ----
+func TestUnmarshalJSON_RoundTrip(t *testing.T) {
+	original := Result{IP: addr1, Source: "src", CountryCode: "CN", Country: "China", Province: "Beijing", City: "Haidian", Organization: "ChinaNet", ASN: 4134}
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
 
-func TestNewResult_ZeroValues(t *testing.T) {
-	r := NewResult(netip.Addr{}, "", "", "", "", "", "", 0)
+	var got Result
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal error: %v", err)
+	}
+	if got != original {
+		t.Errorf("round-trip = %#v, want %#v", got, original)
+	}
+}
+
+// ---- Zero value ----
+
+func TestZeroValue(t *testing.T) {
+	r := Result{}
 	if !r.IsEmpty() {
 		t.Error("expected IsEmpty() = true for zero-value result")
 	}

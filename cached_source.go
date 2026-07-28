@@ -10,9 +10,16 @@ import (
 	"github.com/jellydator/ttlcache/v3"
 )
 
+// resultEntry is a cached lookup outcome. ok is false when the address is known
+// to be absent (negative cache); result is the stored value only when ok is true.
+type resultEntry struct {
+	result Result
+	ok     bool
+}
+
 type cachedSource struct {
 	source  Source
-	results *ttlcache.Cache[netip.Addr, *Result]
+	results *ttlcache.Cache[netip.Addr, resultEntry]
 	errors  *ttlcache.Cache[netip.Addr, error]
 }
 
@@ -27,8 +34,8 @@ func newCachedSource(src Source, maxEntries uint, resultTTL, errorTTL time.Durat
 		return nil, fmt.Errorf("ipgeo: create cache: errorTTL must not be negative, got %s", errorTTL)
 	}
 	cache := ttlcache.New(
-		ttlcache.WithCapacity[netip.Addr, *Result](uint64(maxEntries)),
-		ttlcache.WithTTL[netip.Addr, *Result](resultTTL),
+		ttlcache.WithCapacity[netip.Addr, resultEntry](uint64(maxEntries)),
+		ttlcache.WithTTL[netip.Addr, resultEntry](resultTTL),
 	)
 	var errors *ttlcache.Cache[netip.Addr, error]
 	if errorTTL > 0 {
@@ -45,7 +52,7 @@ func newCachedSource(src Source, maxEntries uint, resultTTL, errorTTL time.Durat
 	}, nil
 }
 
-func (s *cachedSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
+func (s *cachedSource) Lookup(ctx context.Context, addr netip.Addr) (Result, error) {
 	addr = addr.Unmap()
 	if ok, result, err := s.lookupCache(addr); ok {
 		return result, err
@@ -54,15 +61,15 @@ func (s *cachedSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, er
 	result, lookupErr := s.source.Lookup(ctx, addr)
 	if lookupErr != nil {
 		if errors.Is(lookupErr, ErrNotFound) {
-			s.results.Set(addr, nil, ttlcache.DefaultTTL)
-			return nil, lookupErr
+			s.results.Set(addr, resultEntry{ok: false}, ttlcache.DefaultTTL)
+			return Result{}, lookupErr
 		}
 		if s.errors != nil && !isContextError(lookupErr) {
 			s.errors.Set(addr, lookupErr, ttlcache.DefaultTTL)
 		}
-		return nil, lookupErr
+		return Result{}, lookupErr
 	}
-	s.results.Set(addr, result, ttlcache.DefaultTTL)
+	s.results.Set(addr, resultEntry{result: result, ok: true}, ttlcache.DefaultTTL)
 	return result, nil
 }
 
@@ -70,19 +77,20 @@ func isContextError(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
-func (s *cachedSource) lookupCache(addr netip.Addr) (bool, *Result, error) {
+func (s *cachedSource) lookupCache(addr netip.Addr) (bool, Result, error) {
 	if item := s.results.Get(addr); item != nil {
-		if result := item.Value(); result != nil {
-			return true, result, nil
+		entry := item.Value()
+		if entry.ok {
+			return true, entry.result, nil
 		}
-		return true, nil, ErrNotFound
+		return true, Result{}, ErrNotFound
 	}
 	if s.errors != nil {
 		if item := s.errors.Get(addr); item != nil {
-			return true, nil, item.Value()
+			return true, Result{}, item.Value()
 		}
 	}
-	return false, nil, nil
+	return false, Result{}, nil
 }
 
 func (s *cachedSource) Name() string {

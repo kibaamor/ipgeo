@@ -85,23 +85,23 @@ func pickName(names map[string]string) string {
 // mergeRecord copies non-empty fields from record into result,
 // leaving fields that are already set unchanged.
 func mergeRecord(result *Result, record *cityRecord) {
-	if result.countryCode == "" {
-		result.countryCode = record.Country.ISOCode
+	if result.CountryCode == "" {
+		result.CountryCode = record.Country.ISOCode
 	}
-	if result.country == "" {
-		result.country = pickName(record.Country.Names)
+	if result.Country == "" {
+		result.Country = pickName(record.Country.Names)
 	}
-	if result.province == "" && len(record.Subdivisions) > 0 {
-		result.province = pickName(record.Subdivisions[0].Names)
+	if result.Province == "" && len(record.Subdivisions) > 0 {
+		result.Province = pickName(record.Subdivisions[0].Names)
 	}
-	if result.city == "" {
-		result.city = pickName(record.City.Names)
+	if result.City == "" {
+		result.City = pickName(record.City.Names)
 	}
-	if result.asn == 0 {
-		result.asn = uint32(record.AutonomousSystemNumber) //nolint:gosec // ASN is 32-bit per RFC 6793
+	if result.ASN == 0 {
+		result.ASN = uint32(record.AutonomousSystemNumber) //nolint:gosec // ASN is 32-bit per RFC 6793
 	}
-	if result.organization == "" {
-		result.organization = record.AutonomousSystemOrganization
+	if result.Organization == "" {
+		result.Organization = record.AutonomousSystemOrganization
 	}
 }
 
@@ -115,29 +115,29 @@ func addrToNetIP(addr netip.Addr) net.IP {
 	return net.IP(a[:])
 }
 
-func (m *mmdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
+func (m *mmdbSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) {
 	ip := addrToNetIP(addr)
 
 	var record cityRecord
 	if err := m.db.Lookup(ip, &record); err != nil {
-		return nil, err
+		return Result{}, err
 	}
 
 	var result Result
-	result.ip = addr
-	result.source = m.name
+	result.IP = addr
+	result.Source = m.name
 	mergeRecord(&result, &record)
 
 	if m.companion != nil {
 		var companion cityRecord
 		if err := m.companion.Lookup(ip, &companion); err != nil {
-			return nil, err
+			return Result{}, err
 		}
 		mergeRecord(&result, &companion)
 	}
 
 	if result.IsEmpty() {
-		return nil, ErrNotFound
+		return Result{}, ErrNotFound
 	}
-	return &result, nil
+	return result, nil
 }

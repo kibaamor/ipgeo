@@ -16,7 +16,7 @@ var testAddr = netip.MustParseAddr("1.2.3.4")
 func TestStructuredRenderer_WriteResult(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewStructuredRenderer(&buf)
-	result := ipgeo.NewResult(testAddr, "db", "CN", "China", "", "", "", 0)
+	result := ipgeo.Result{IP: testAddr, Source: "db", CountryCode: "CN", Country: "China"}
 
 	if err := w.WriteResult(result); err != nil {
 		t.Fatalf("WriteResult() error: %v", err)
@@ -57,7 +57,7 @@ func TestStructuredRenderer_WriteRaw_NoOutput(t *testing.T) {
 func TestStructuredRenderer_WriteResult_PropagatesWriteError(t *testing.T) {
 	writeErr := errors.New("write failed")
 	w := NewStructuredRenderer(errWriter{err: writeErr})
-	result := ipgeo.NewResult(testAddr, "db", "CN", "China", "", "", "", 0)
+	result := ipgeo.Result{IP: testAddr, Source: "db", CountryCode: "CN", Country: "China"}
 
 	if err := w.WriteResult(result); err != nil {
 		t.Fatalf("WriteResult() error = %v, want nil before buffered flush", err)

@@ -17,7 +17,7 @@ var testAddr = netip.MustParseAddr("1.2.3.4")
 // mockSource is a test double for Source.
 type mockSource struct {
 	name    string
-	results map[netip.Addr]*Result
+	results map[netip.Addr]Result
 	err     map[netip.Addr]error
 	closed  bool
 }
@@ -25,7 +25,7 @@ type mockSource struct {
 func newMockSource(name string) *mockSource {
 	return &mockSource{
 		name:    name,
-		results: make(map[netip.Addr]*Result),
+		results: make(map[netip.Addr]Result),
 		err:     make(map[netip.Addr]error),
 	}
 }
@@ -33,17 +33,17 @@ func newMockSource(name string) *mockSource {
 func (m *mockSource) Name() string { return m.name }
 func (m *mockSource) Close() error { m.closed = true; return nil }
 
-func (m *mockSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
+func (m *mockSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) {
 	if err, ok := m.err[addr]; ok {
-		return nil, err
+		return Result{}, err
 	}
 	if r, ok := m.results[addr]; ok {
 		return r, nil
 	}
-	return nil, ErrNotFound
+	return Result{}, ErrNotFound
 }
 
-func (m *mockSource) add(ip string, r *Result) { //nolint:unparam
+func (m *mockSource) add(ip string, r Result) { //nolint:unparam
 	addr := netip.MustParseAddr(ip)
 	m.results[addr] = r
 }
@@ -110,15 +110,15 @@ func TestOpen_Success(t *testing.T) {
 
 func TestLookup_Found(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, source: "db", country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Source: "db", Country: "China"})
 	c := mustOpen(t, Wrap(src))
 
 	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
-	if got.Country() != "China" {
-		t.Errorf("Country = %q, want %q", got.Country(), "China")
+	if got.Country != "China" {
+		t.Errorf("Country = %q, want %q", got.Country, "China")
 	}
 }
 
@@ -129,8 +129,8 @@ func TestLookup_NotFound(t *testing.T) {
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Lookup() error = %v, want ErrNotFound", err)
 	}
-	if got != nil {
-		t.Errorf("Lookup() result = %#v, want nil", got)
+	if !got.IsEmpty() {
+		t.Errorf("Lookup() result = %#v, want zero Result", got)
 	}
 }
 
@@ -152,22 +152,22 @@ func TestLookup_SourceError(t *testing.T) {
 func TestLookup_FallsThrough(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
-	src2.add("1.2.3.4", &Result{ip: testAddr, source: "db2", country: "US"})
+	src2.add("1.2.3.4", Result{IP: testAddr, Source: "db2", Country: "US"})
 	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	got, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
-	if got.Source() != "db2" {
-		t.Errorf("Source = %q, want %q", got.Source(), "db2")
+	if got.Source != "db2" {
+		t.Errorf("Source = %q, want %q", got.Source, "db2")
 	}
 }
 
 // IPv4-mapped IPv6 should be unmapped before lookup
 func TestLookup_IPv4MappedIPv6(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	c := mustOpen(t, Wrap(src))
 
 	mapped := netip.MustParseAddr("::ffff:1.2.3.4")
@@ -175,8 +175,8 @@ func TestLookup_IPv4MappedIPv6(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Lookup() error: %v", err)
 	}
-	if got.Country() != "China" {
-		t.Errorf("Country = %q, want %q", got.Country(), "China")
+	if got.Country != "China" {
+		t.Errorf("Country = %q, want %q", got.Country, "China")
 	}
 }
 
@@ -185,7 +185,7 @@ func TestLookup_IPv4MappedIPv6(t *testing.T) {
 func TestLookup_CacheHit(t *testing.T) {
 	src := newMockSource("db")
 	callCount := 0
-	result := &Result{ip: testAddr, country: "China"}
+	result := Result{IP: testAddr, Country: "China"}
 	src.results[testAddr] = result
 
 	// Wrap to count calls
@@ -205,7 +205,7 @@ func TestLookup_CacheHit(t *testing.T) {
 func TestLookup_CachesNilMissFallthrough(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
-	src2.add("1.2.3.4", &Result{ip: testAddr, source: "db2", country: "US"})
+	src2.add("1.2.3.4", Result{IP: testAddr, Source: "db2", Country: "US"})
 	src1Count := 0
 	src2Count := 0
 
@@ -219,8 +219,8 @@ func TestLookup_CachesNilMissFallthrough(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Lookup() error: %v", err)
 		}
-		if got.Source() != "db2" {
-			t.Fatalf("Source = %q, want db2", got.Source())
+		if got.Source != "db2" {
+			t.Fatalf("Source = %q, want db2", got.Source)
 		}
 	}
 
@@ -237,7 +237,7 @@ type countingSource struct {
 	counter *int
 }
 
-func (c *countingSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
+func (c *countingSource) Lookup(ctx context.Context, addr netip.Addr) (Result, error) {
 	*c.counter++
 	return c.Source.Lookup(ctx, addr)
 }
@@ -247,8 +247,8 @@ func (c *countingSource) Lookup(ctx context.Context, addr netip.Addr) (*Result, 
 func TestLookupAll_MultiSource(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
-	src1.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
-	src2.add("1.2.3.4", &Result{ip: testAddr, country: "China2"})
+	src1.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
+	src2.add("1.2.3.4", Result{IP: testAddr, Country: "China2"})
 	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	results, err := c.LookupAll(context.Background(), testAddr)
@@ -276,7 +276,7 @@ func TestLookupAll_PartialErrors(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
 	src1.addErr(errors.New("broken"))
-	src2.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src2.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	results, err := c.LookupAll(context.Background(), testAddr)
@@ -286,16 +286,16 @@ func TestLookupAll_PartialErrors(t *testing.T) {
 	if len(results) != 1 {
 		t.Fatalf("len(results) = %d, want 1", len(results))
 	}
-	if results[0].Country() != "China" {
-		t.Errorf("results[0].Country() = %q, want %q", results[0].Country(), "China")
+	if results[0].Country != "China" {
+		t.Errorf("results[0].Country = %q, want %q", results[0].Country, "China")
 	}
 }
 
 func TestLookupAll_CacheHitPerSource(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
-	src1.add("1.2.3.4", &Result{ip: testAddr, source: "db1", country: "China"})
-	src2.add("1.2.3.4", &Result{ip: testAddr, source: "db2", country: "US"})
+	src1.add("1.2.3.4", Result{IP: testAddr, Source: "db1", Country: "China"})
+	src2.add("1.2.3.4", Result{IP: testAddr, Source: "db2", Country: "US"})
 	src1Count := 0
 	src2Count := 0
 
@@ -358,15 +358,15 @@ func TestLookupAll_CachesErrors(t *testing.T) {
 func TestLookupFrom_Found(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
-	src2.add("1.2.3.4", &Result{ip: testAddr, country: "US"})
+	src2.add("1.2.3.4", Result{IP: testAddr, Country: "US"})
 	c := mustOpen(t, Wrap(src1), Wrap(src2))
 
 	got, err := c.LookupFrom(context.Background(), "db2", testAddr)
 	if err != nil {
 		t.Fatalf("LookupFrom() error: %v", err)
 	}
-	if got.Country() != "US" {
-		t.Errorf("Country = %q, want US", got.Country())
+	if got.Country != "US" {
+		t.Errorf("Country = %q, want US", got.Country)
 	}
 }
 
@@ -386,15 +386,15 @@ func TestLookupFrom_NotFound(t *testing.T) {
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("LookupFrom() error = %v, want ErrNotFound", err)
 	}
-	if got != nil {
-		t.Fatalf("LookupFrom() result = %#v, want nil", got)
+	if !got.IsEmpty() {
+		t.Fatalf("LookupFrom() result = %#v, want zero Result", got)
 	}
 }
 
 func TestLookupFrom_CacheHit(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
-	src2.add("1.2.3.4", &Result{ip: testAddr, country: "US"})
+	src2.add("1.2.3.4", Result{IP: testAddr, Country: "US"})
 	src1Count := 0
 	src2Count := 0
 
@@ -408,8 +408,8 @@ func TestLookupFrom_CacheHit(t *testing.T) {
 		if err != nil {
 			t.Fatalf("LookupFrom() error: %v", err)
 		}
-		if got.Country() != "US" {
-			t.Fatalf("Country = %q, want US", got.Country())
+		if got.Country != "US" {
+			t.Fatalf("Country = %q, want US", got.Country)
 		}
 	}
 
@@ -510,7 +510,7 @@ func TestLookupFrom_CacheErrorCanBeDisabled(t *testing.T) {
 }
 
 func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
-	src := newBlockingSource("db", &Result{ip: testAddr, country: "US"}, nil)
+	src := newBlockingSource("db", Result{IP: testAddr, Country: "US"}, nil)
 	c := mustOpen(t, Wrap(src).Decorate(Singleflight()))
 
 	const goroutines = 20
@@ -528,7 +528,7 @@ func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
 				errs <- err
 				return
 			}
-			if got.Country() != "US" {
+			if got.Country != "US" {
 				errs <- errors.New("unexpected country")
 			}
 		})
@@ -553,8 +553,8 @@ func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupFrom() after singleflight error: %v", err)
 	}
-	if got.Country() != "US" {
-		t.Fatalf("Country = %q, want US", got.Country())
+	if got.Country != "US" {
+		t.Fatalf("Country = %q, want US", got.Country)
 	}
 	if got := src.calls.Load(); got != 2 {
 		t.Errorf("source called %d times, want 2 after sequential no-cache retry", got)
@@ -562,7 +562,7 @@ func TestLookupFrom_SingleflightWithoutCache(t *testing.T) {
 }
 
 func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
-	src := newBlockingSource("db", &Result{ip: testAddr, country: "US"}, nil)
+	src := newBlockingSource("db", Result{IP: testAddr, Country: "US"}, nil)
 	c := mustOpen(t, Wrap(src).Decorate(Singleflight()).Decorate(Cache(10, 0, 0)))
 
 	const goroutines = 20
@@ -580,7 +580,7 @@ func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
 				errs <- err
 				return
 			}
-			if got.Country() != "US" {
+			if got.Country != "US" {
 				errs <- errors.New("unexpected country")
 			}
 		})
@@ -609,7 +609,7 @@ func TestLookupFrom_SingleflightCacheMiss(t *testing.T) {
 
 func TestLookupFrom_SingleflightErrorMiss(t *testing.T) {
 	sentinelErr := errors.New("broken")
-	src := newBlockingSource("db", nil, sentinelErr)
+	src := newBlockingSource("db", Result{}, sentinelErr)
 	c := mustOpen(t, Wrap(src).Decorate(Singleflight()).Decorate(Cache(10, 0, 0)))
 
 	const goroutines = 20
@@ -655,7 +655,7 @@ func TestLookupFrom_SingleflightErrorMiss(t *testing.T) {
 
 type blockingSource struct {
 	name    string
-	result  *Result
+	result  Result
 	err     error
 	started chan struct{}
 	release chan struct{}
@@ -663,7 +663,7 @@ type blockingSource struct {
 	calls   atomic.Int32
 }
 
-func newBlockingSource(name string, result *Result, err error) *blockingSource { //nolint:unparam
+func newBlockingSource(name string, result Result, err error) *blockingSource { //nolint:unparam
 	return &blockingSource{
 		name:    name,
 		result:  result,
@@ -673,14 +673,14 @@ func newBlockingSource(name string, result *Result, err error) *blockingSource {
 	}
 }
 
-func (s *blockingSource) Lookup(ctx context.Context, _ netip.Addr) (*Result, error) {
+func (s *blockingSource) Lookup(ctx context.Context, _ netip.Addr) (Result, error) {
 	s.calls.Add(1)
 	s.once.Do(func() { close(s.started) })
 	select {
 	case <-s.release:
 		return s.result, s.err
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return Result{}, ctx.Err()
 	}
 }
 
@@ -703,7 +703,7 @@ func TestSourceNames(t *testing.T) {
 
 func TestWithCache_ValidSize(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	c := mustOpen(t, Wrap(src).Decorate(Cache(100, 0, 0)))
 
 	_, err := c.Lookup(context.Background(), netip.MustParseAddr("1.2.3.4"))
@@ -714,7 +714,7 @@ func TestWithCache_ValidSize(t *testing.T) {
 
 func TestWithCache_ZeroSizeDisablesCache(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	callCount := 0
 	counting := &countingSource{Source: src, counter: &callCount}
 
@@ -762,8 +762,8 @@ func TestWithCache_EvictsCachedEntry(t *testing.T) {
 
 	addr1 := netip.MustParseAddr("1.1.1.1")
 	addr2 := netip.MustParseAddr("2.2.2.2")
-	src.add("1.1.1.1", &Result{ip: addr1, country: "A"})
-	src.add("2.2.2.2", &Result{ip: addr2, country: "B"})
+	src.add("1.1.1.1", Result{IP: addr1, Country: "A"})
+	src.add("2.2.2.2", Result{IP: addr2, Country: "B"})
 
 	_, _ = c.Lookup(context.Background(), addr1) // Cache addr1
 	_, _ = c.Lookup(context.Background(), addr2) // Cache addr2, evicts addr1
@@ -776,7 +776,7 @@ func TestWithCache_EvictsCachedEntry(t *testing.T) {
 
 func TestWithCache_ResultTTLExpires(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	callCount := 0
 
 	c := mustOpen(t,
@@ -798,7 +798,7 @@ func TestWithCache_ResultTTLExpires(t *testing.T) {
 
 func TestWithCache_ResultTTLZeroIsPermanent(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	callCount := 0
 
 	c := mustOpen(t,
@@ -815,7 +815,7 @@ func TestWithCache_ResultTTLZeroIsPermanent(t *testing.T) {
 
 func TestWithCache_ResultTTLIsSlidingWindow(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	callCount := 0
 
 	c := mustOpen(t,
@@ -869,7 +869,7 @@ func TestClose_ClosesAllSources(t *testing.T) {
 
 func TestClose_PurgesCache(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	// Don't use mustOpen here — we call Close() manually to inspect state.
 	c, err := Open(Wrap(src).Decorate(Singleflight()).Decorate(Cache(10, 0, time.Second)))
 	if err != nil {

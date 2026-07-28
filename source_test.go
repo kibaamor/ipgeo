@@ -85,34 +85,34 @@ func TestMergeRecord(t *testing.T) {
 
 		mergeRecord(r, rec)
 
-		if r.countryCode != "CN" {
-			t.Errorf("countryCode = %q, want CN", r.countryCode)
+		if r.CountryCode != "CN" {
+			t.Errorf("countryCode = %q, want CN", r.CountryCode)
 		}
-		if r.country != "China" {
-			t.Errorf("country = %q, want China", r.country)
+		if r.Country != "China" {
+			t.Errorf("country = %q, want China", r.Country)
 		}
-		if r.province != "Beijing" {
-			t.Errorf("province = %q, want Beijing", r.province)
+		if r.Province != "Beijing" {
+			t.Errorf("province = %q, want Beijing", r.Province)
 		}
-		if r.city != "Haidian" {
-			t.Errorf("city = %q, want Haidian", r.city)
+		if r.City != "Haidian" {
+			t.Errorf("city = %q, want Haidian", r.City)
 		}
-		if r.asn != 4134 {
-			t.Errorf("asn = %d, want 4134", r.asn)
+		if r.ASN != 4134 {
+			t.Errorf("asn = %d, want 4134", r.ASN)
 		}
-		if r.organization != "ChinaNet" {
-			t.Errorf("organization = %q, want ChinaNet", r.organization)
+		if r.Organization != "ChinaNet" {
+			t.Errorf("organization = %q, want ChinaNet", r.Organization)
 		}
 	})
 
 	t.Run("does not overwrite existing fields", func(t *testing.T) {
 		r := &Result{
-			countryCode:  "US",
-			country:      "United States",
-			province:     "CA",
-			city:         "LA",
-			asn:          7922,
-			organization: "Comcast",
+			CountryCode:  "US",
+			Country:      "United States",
+			Province:     "CA",
+			City:         "LA",
+			ASN:          7922,
+			Organization: "Comcast",
 		}
 		rec := &cityRecord{
 			AutonomousSystemNumber:       4134,
@@ -127,23 +127,23 @@ func TestMergeRecord(t *testing.T) {
 
 		mergeRecord(r, rec)
 
-		if r.countryCode != "US" {
-			t.Errorf("countryCode should not be overwritten, got %q", r.countryCode)
+		if r.CountryCode != "US" {
+			t.Errorf("countryCode should not be overwritten, got %q", r.CountryCode)
 		}
-		if r.country != "United States" {
-			t.Errorf("country should not be overwritten, got %q", r.country)
+		if r.Country != "United States" {
+			t.Errorf("country should not be overwritten, got %q", r.Country)
 		}
-		if r.province != "CA" {
-			t.Errorf("province should not be overwritten, got %q", r.province)
+		if r.Province != "CA" {
+			t.Errorf("province should not be overwritten, got %q", r.Province)
 		}
-		if r.city != "LA" {
-			t.Errorf("city should not be overwritten, got %q", r.city)
+		if r.City != "LA" {
+			t.Errorf("city should not be overwritten, got %q", r.City)
 		}
-		if r.asn != 7922 {
-			t.Errorf("asn should not be overwritten, got %d", r.asn)
+		if r.ASN != 7922 {
+			t.Errorf("asn should not be overwritten, got %d", r.ASN)
 		}
-		if r.organization != "Comcast" {
-			t.Errorf("organization should not be overwritten, got %q", r.organization)
+		if r.Organization != "Comcast" {
+			t.Errorf("organization should not be overwritten, got %q", r.Organization)
 		}
 	})
 
@@ -158,8 +158,8 @@ func TestMergeRecord(t *testing.T) {
 			{Names: map[string]string{"en": "Province3"}},
 		}
 		mergeRecord(r, rec)
-		if r.province != "Province1" {
-			t.Errorf("province = %q, want Province1 (first subdivision)", r.province)
+		if r.Province != "Province1" {
+			t.Errorf("province = %q, want Province1 (first subdivision)", r.Province)
 		}
 	})
 
@@ -174,19 +174,19 @@ func TestMergeRecord(t *testing.T) {
 
 		mergeRecord(r, rec)
 
-		if r.country != "" {
-			t.Errorf("country = %q, want empty", r.country)
+		if r.Country != "" {
+			t.Errorf("country = %q, want empty", r.Country)
 		}
-		if r.city != "" {
-			t.Errorf("city = %q, want empty", r.city)
+		if r.City != "" {
+			t.Errorf("city = %q, want empty", r.City)
 		}
-		if r.province != "" {
-			t.Errorf("province = %q, want empty", r.province)
+		if r.Province != "" {
+			t.Errorf("province = %q, want empty", r.Province)
 		}
 	})
 
 	t.Run("partial result merge", func(t *testing.T) {
-		r := &Result{province: "Beijing"}
+		r := &Result{Province: "Beijing"}
 		rec := &cityRecord{}
 		rec.Country.ISOCode = "CN"
 		rec.Country.Names = map[string]string{"en": "China"}
@@ -194,14 +194,14 @@ func TestMergeRecord(t *testing.T) {
 
 		mergeRecord(r, rec)
 
-		if r.country != "China" {
-			t.Errorf("country = %q, want China", r.country)
+		if r.Country != "China" {
+			t.Errorf("country = %q, want China", r.Country)
 		}
-		if r.province != "Beijing" {
-			t.Errorf("province = %q, want Beijing (not overwritten)", r.province)
+		if r.Province != "Beijing" {
+			t.Errorf("province = %q, want Beijing (not overwritten)", r.Province)
 		}
-		if r.city != "Chaoyang" {
-			t.Errorf("city = %q, want Chaoyang", r.city)
+		if r.City != "Chaoyang" {
+			t.Errorf("city = %q, want Chaoyang", r.City)
 		}
 	})
 }

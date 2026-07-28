@@ -15,9 +15,9 @@ type recordingSource struct {
 	called bool
 }
 
-func (r *recordingSource) Lookup(_ context.Context, _ netip.Addr) (*Result, error) {
+func (r *recordingSource) Lookup(_ context.Context, _ netip.Addr) (Result, error) {
 	r.called = true
-	return &Result{ip: testAddr, source: r.name, country: "X"}, nil
+	return Result{IP: testAddr, Source: r.name, Country: "X"}, nil
 }
 
 func newRecordingSource(name string) *recordingSource {
@@ -35,8 +35,8 @@ func TestLookup_RespectsCancelledContext(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Lookup() error = %v, want context.Canceled", err)
 	}
-	if got != nil {
-		t.Errorf("Lookup() result = %#v, want nil", got)
+	if !got.IsEmpty() {
+		t.Errorf("Lookup() result = %#v, want zero Result", got)
 	}
 	if src.called {
 		t.Error("source was called despite cancelled context")
@@ -74,8 +74,8 @@ func TestLookupFrom_RespectsCancelledContext(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("LookupFrom() error = %v, want context.Canceled", err)
 	}
-	if got != nil {
-		t.Errorf("LookupFrom() result = %#v, want nil", got)
+	if !got.IsEmpty() {
+		t.Errorf("LookupFrom() result = %#v, want zero Result", got)
 	}
 	if src.called {
 		t.Error("source was called despite cancelled context")
@@ -113,7 +113,7 @@ func TestCachedSource_DoesNotCacheContextError(t *testing.T) {
 // expires mid-flight does not poison the shared lookup for a concurrent caller
 // with a valid context.
 func TestSingleflight_DoesNotPoisonConcurrentCaller(t *testing.T) {
-	src := newBlockingSource("db", &Result{ip: testAddr, source: "db", country: "US"}, nil)
+	src := newBlockingSource("db", Result{IP: testAddr, Source: "db", Country: "US"}, nil)
 	sf := newSingleflightSource(src)
 
 	// Caller A owns the shared lookup; its context expires well before release.
@@ -121,7 +121,7 @@ func TestSingleflight_DoesNotPoisonConcurrentCaller(t *testing.T) {
 	defer cancelA()
 
 	var aErr, bErr error
-	var bResult *Result
+	var bResult Result
 	var wg sync.WaitGroup
 
 	// Release the shared lookup after ctxA has expired.
@@ -153,7 +153,7 @@ func TestSingleflight_DoesNotPoisonConcurrentCaller(t *testing.T) {
 	if bErr != nil {
 		t.Errorf("caller B error = %v, want nil (must not inherit A's deadline)", bErr)
 	}
-	if bResult == nil || bResult.Country() != "US" {
+	if bResult.Country != "US" {
 		t.Errorf("caller B result = %#v, want US", bResult)
 	}
 	if got := src.calls.Load(); got != 1 {

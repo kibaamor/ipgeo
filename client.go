@@ -68,28 +68,28 @@ func (c *Client) SourceNames() []string {
 }
 
 // Lookup queries sources in order and returns the first result found.
-// If no source has a matching record, it returns a nil Result and ErrNotFound.
+// If no source has a matching record, it returns a zero Result and ErrNotFound.
 // IPv4-mapped IPv6 addresses are unmapped before lookup.
 // If ctx is cancelled, Lookup returns the context error without querying.
-func (c *Client) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
+func (c *Client) Lookup(ctx context.Context, addr netip.Addr) (Result, error) {
 	addr = addr.Unmap()
 
 	for _, src := range c.sources {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return Result{}, err
 		}
 		result, err := src.Lookup(ctx, addr)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				continue
 			}
-			return nil, fmt.Errorf("%s: %w", src.Name(), err)
+			return Result{}, fmt.Errorf("%s: %w", src.Name(), err)
 		}
 
 		return result, nil
 	}
 
-	return nil, ErrNotFound
+	return Result{}, ErrNotFound
 }
 
 // LookupAll queries all sources and returns every result found.
@@ -97,10 +97,10 @@ func (c *Client) Lookup(ctx context.Context, addr netip.Addr) (*Result, error) {
 // returns a nil result slice and ErrNotFound. ErrNotFound from individual
 // sources is skipped; other source errors are joined. If ctx is cancelled,
 // LookupAll stops querying and joins the context error.
-func (c *Client) LookupAll(ctx context.Context, addr netip.Addr) ([]*Result, error) {
+func (c *Client) LookupAll(ctx context.Context, addr netip.Addr) ([]Result, error) {
 	addr = addr.Unmap()
 
-	var results []*Result
+	var results []Result
 	errs := make([]error, 0, len(c.sources))
 	for _, src := range c.sources {
 		if err := ctx.Err(); err != nil {
@@ -125,24 +125,24 @@ func (c *Client) LookupAll(ctx context.Context, addr netip.Addr) ([]*Result, err
 }
 
 // LookupFrom queries a specific named source.
-// If that source has no matching record, it returns a nil Result and ErrNotFound
+// If that source has no matching record, it returns a zero Result and ErrNotFound
 // (wrapped with the source name).
 // If ctx is cancelled, LookupFrom returns the context error without querying.
-func (c *Client) LookupFrom(ctx context.Context, sourceName string, addr netip.Addr) (*Result, error) {
+func (c *Client) LookupFrom(ctx context.Context, sourceName string, addr netip.Addr) (Result, error) {
 	target := c.sourceByName[sourceName]
 	if target == nil {
-		return nil, fmt.Errorf("%w: %q", ErrSourceNotConfigured, sourceName)
+		return Result{}, fmt.Errorf("%w: %q", ErrSourceNotConfigured, sourceName)
 	}
 
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return Result{}, err
 	}
 
 	addr = addr.Unmap()
 
 	result, err := target.Lookup(ctx, addr)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", target.Name(), err)
+		return Result{}, fmt.Errorf("%s: %w", target.Name(), err)
 	}
 
 	return result, nil

@@ -35,10 +35,7 @@ func isTerminalWriter(w io.Writer) bool {
 
 // formatAnnotation renders a result as a dim bracketed string.
 // Returns an empty string for empty results.
-func (f *coloredFormatter) formatAnnotation(result *ipgeo.Result) string {
-	if result == nil {
-		return ""
-	}
+func (f *coloredFormatter) formatAnnotation(result ipgeo.Result) string {
 	s := result.String()
 	if s == "" {
 		return ""

@@ -55,38 +55,38 @@ func (i *ipdbSource) Name() string { return i.name }
 
 func (i *ipdbSource) Close() error { return nil }
 
-func (i *ipdbSource) Lookup(_ context.Context, addr netip.Addr) (*Result, error) {
+func (i *ipdbSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) {
 	info, err := i.db.FindInfo(addr.String(), i.lang)
 	if err != nil {
 		if errors.Is(err, ipdb.ErrDataNotExists) {
-			return nil, ErrNotFound
+			return Result{}, ErrNotFound
 		}
-		return nil, err
+		return Result{}, err
 	}
 
 	result := Result{
-		ip:           addr,
-		source:       i.name,
-		countryCode:  info.CountryCode,
-		country:      info.CountryName,
-		province:     info.RegionName,
-		city:         info.CityName,
-		organization: info.IspDomain,
+		IP:           addr,
+		Source:       i.name,
+		CountryCode:  info.CountryCode,
+		Country:      info.CountryName,
+		Province:     info.RegionName,
+		City:         info.CityName,
+		Organization: info.IspDomain,
 	}
 
 	if len(info.ASNInfo) > 0 {
 		if asn := info.ASNInfo[0].ASN; asn >= 0 {
-			result.asn = uint32(asn) //nolint:gosec // ASN is 32-bit per RFC 6793
+			result.ASN = uint32(asn) //nolint:gosec // ASN is 32-bit per RFC 6793
 		}
 	} else if info.ASN != "" {
 		asnStr := strings.TrimPrefix(info.ASN, "AS")
 		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
-			result.asn = uint32(n)
+			result.ASN = uint32(n)
 		}
 	}
 
 	if result.IsEmpty() {
-		return nil, ErrNotFound
+		return Result{}, ErrNotFound
 	}
-	return &result, nil
+	return result, nil
 }

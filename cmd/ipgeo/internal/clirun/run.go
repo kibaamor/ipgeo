@@ -50,7 +50,7 @@ func Run(ctx context.Context, opts Options) (runErr error) {
 	return errors.Join(err, closer.Close())
 }
 
-func streamInput(ctx context.Context, in io.Reader, renderer output.Renderer, lookup func(context.Context, netip.Addr) (*ipgeo.Result, error)) (runErr error) {
+func streamInput(ctx context.Context, in io.Reader, renderer output.Renderer, lookup func(context.Context, netip.Addr) (ipgeo.Result, error)) (runErr error) {
 	var streamErr error
 	streamer := ipstream.NewStreamer(ipstream.HandleFunc(func(raw []byte, addr netip.Addr) {
 		if streamErr != nil {
@@ -88,7 +88,7 @@ func streamInput(ctx context.Context, in io.Reader, renderer output.Renderer, lo
 	}
 }
 
-func handleSegment(ctx context.Context, renderer output.Renderer, lookup func(context.Context, netip.Addr) (*ipgeo.Result, error), raw []byte, addr netip.Addr) error {
+func handleSegment(ctx context.Context, renderer output.Renderer, lookup func(context.Context, netip.Addr) (ipgeo.Result, error), raw []byte, addr netip.Addr) error {
 	if err := renderer.WriteRaw(raw); err != nil {
 		return err
 	}

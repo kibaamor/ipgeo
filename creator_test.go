@@ -73,7 +73,7 @@ func TestCreate_DecoratorErrorClosesSource(t *testing.T) {
 }
 
 func TestSingleflight_DeduplicatesConcurrentMisses(t *testing.T) {
-	src := newBlockingSource("db", &Result{ip: testAddr, country: "US"}, nil)
+	src := newBlockingSource("db", Result{IP: testAddr, Country: "US"}, nil)
 	sf, err := Wrap(src).Decorate(Singleflight()).Create()
 	if err != nil {
 		t.Fatalf("Create() error: %v", err)
@@ -136,7 +136,7 @@ func TestCache_DecoratorValidationPropagates(t *testing.T) {
 
 func TestCache_DecoratorCachesResults(t *testing.T) {
 	src := newMockSource("db")
-	src.add("1.2.3.4", &Result{ip: testAddr, country: "China"})
+	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
 	counting := &countingSource{Source: src, counter: new(int)}
 
 	got, err := Wrap(counting).Decorate(Cache(10, 0, 0)).Create()
