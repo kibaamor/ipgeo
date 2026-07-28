@@ -22,7 +22,7 @@ func TestRootCmd_UpdateCommand(t *testing.T) {
 		t.Fatalf("Find(update) = %v, want update command", updateCmd)
 	}
 	if updateCmd.Flags().Lookup("self") != nil {
-		t.Fatal("update command still exposes --self; use upgrade for CLI self-update")
+		t.Fatal("update command should not expose --self")
 	}
 	if updateCmd.Short != "Update source database files" {
 		t.Fatalf("update Short = %q, want \"Update source database files\"", updateCmd.Short)
