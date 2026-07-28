@@ -50,9 +50,6 @@ ipgeo info
 
 # Refresh configured source database files.
 ipgeo update
-
-# Upgrade the ipgeo CLI binary from GitHub Releases.
-ipgeo upgrade
 ```
 
 Useful flags: `-j/--json`, `-s/--source`, `-i/--input`, `-o/--output`, `-h/--help`.
