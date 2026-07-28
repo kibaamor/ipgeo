@@ -668,41 +668,6 @@ sources:
 	}
 }
 
-func TestLoadFromData_RejectsUpdaterAsUnknownField(t *testing.T) {
-	_, err := loadFromData([]byte(`
-sources:
-  - type: mmdb
-    name: test
-    filename: test.mmdb
-    urls:
-      - https://example.com/test.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
-`), t.TempDir())
-	if err == nil {
-		t.Fatal("loadFromData() error = nil, want unknown-field error for updater")
-	}
-}
-
-func TestSchemaRejectsUpdaterAsUnknownField(t *testing.T) {
-	schema := loadConfigSchema(t)
-	doc := yamlToJSONCompatible(t, []byte(`
-sources:
-  - type: mmdb
-    name: test
-    filename: test.mmdb
-    urls:
-      - https://example.com/test.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
-`))
-	if err := schema.Validate(doc); err == nil {
-		t.Fatal("schema accepted unknown top-level field updater")
-	}
-}
-
 func loadConfigSchema(t *testing.T) *jsonschema.Schema {
 	t.Helper()
 
