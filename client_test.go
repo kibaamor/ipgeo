@@ -14,7 +14,6 @@ import (
 
 var testAddr = netip.MustParseAddr("1.2.3.4")
 
-// mockSource is a test double for Source.
 type mockSource struct {
 	name    string
 	results map[netip.Addr]Result
@@ -52,7 +51,6 @@ func (m *mockSource) addErr(err error) {
 	m.err[testAddr] = err
 }
 
-// mustOpen calls Open and fatals the test on error.
 func mustOpen(t *testing.T, creators ...SourceCreator) *Client {
 	t.Helper()
 	c, err := Open(creators...)
@@ -62,8 +60,6 @@ func mustOpen(t *testing.T, creators ...SourceCreator) *Client {
 	t.Cleanup(func() { _ = c.Close() })
 	return c
 }
-
-// ---- Open ----
 
 func TestOpen_NoSources(t *testing.T) {
 	_, err := Open()
@@ -105,8 +101,6 @@ func TestOpen_DuplicateNameClosesAllSources(t *testing.T) {
 func TestOpen_Success(t *testing.T) {
 	mustOpen(t, Wrap(newMockSource("db")))
 }
-
-// ---- Lookup ----
 
 func TestLookup_Found(t *testing.T) {
 	src := newMockSource("db")
@@ -164,7 +158,6 @@ func TestLookup_FallsThrough(t *testing.T) {
 	}
 }
 
-// IPv4-mapped IPv6 should be unmapped before lookup
 func TestLookup_IPv4MappedIPv6(t *testing.T) {
 	src := newMockSource("db")
 	src.add("1.2.3.4", Result{IP: testAddr, Country: "China"})
@@ -180,15 +173,12 @@ func TestLookup_IPv4MappedIPv6(t *testing.T) {
 	}
 }
 
-// ---- Lookup with cache ----
-
 func TestLookup_CacheHit(t *testing.T) {
 	src := newMockSource("db")
 	callCount := 0
 	result := Result{IP: testAddr, Country: "China"}
 	src.results[testAddr] = result
 
-	// Wrap to count calls
 	counting := &countingSource{Source: src, counter: &callCount}
 	c := mustOpen(t, Wrap(counting).Decorate(Cache(10, 0, 0)))
 
@@ -241,8 +231,6 @@ func (c *countingSource) Lookup(ctx context.Context, addr netip.Addr) (Result, e
 	*c.counter++
 	return c.Source.Lookup(ctx, addr)
 }
-
-// ---- LookupAll ----
 
 func TestLookupAll_MultiSource(t *testing.T) {
 	src1 := newMockSource("db1")
@@ -352,8 +340,6 @@ func TestLookupAll_CachesErrors(t *testing.T) {
 		t.Errorf("db2 called %d times, want 1 (cached not-found result)", src2Count)
 	}
 }
-
-// ---- LookupFrom ----
 
 func TestLookupFrom_Found(t *testing.T) {
 	src1 := newMockSource("db1")
@@ -688,8 +674,6 @@ func (s *blockingSource) Name() string { return s.name }
 
 func (s *blockingSource) Close() error { return nil }
 
-// ---- SourceNames ----
-
 func TestSourceNames(t *testing.T) {
 	c := mustOpen(t, Wrap(newMockSource("alpha")), Wrap(newMockSource("beta")))
 
@@ -698,8 +682,6 @@ func TestSourceNames(t *testing.T) {
 		t.Errorf("SourceNames() = %v, want [alpha beta]", names)
 	}
 }
-
-// ---- Cache ----
 
 func TestWithCache_ValidSize(t *testing.T) {
 	src := newMockSource("db")
@@ -846,8 +828,6 @@ func TestWithCache_ResultTTLIsSlidingWindow(t *testing.T) {
 	}
 }
 
-// ---- Close ----
-
 func TestClose_ClosesAllSources(t *testing.T) {
 	src1 := newMockSource("db1")
 	src2 := newMockSource("db2")
@@ -932,7 +912,6 @@ func TestErrorCacheExpiresLazily(t *testing.T) {
 	}
 }
 
-// countCloseSource wraps a mock source and counts Close calls.
 type countCloseSource struct {
 	*mockSource
 	closes int

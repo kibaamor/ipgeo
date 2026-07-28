@@ -389,7 +389,6 @@ func TestDownloadFiles_CtxCancellation(t *testing.T) {
 	}
 }
 
-// gzCompress is a helper that gzip-compresses the given data.
 func gzCompress(t *testing.T, data []byte) []byte {
 	t.Helper()
 	var buf bytes.Buffer
@@ -437,8 +436,6 @@ func TestDownloadFiles_AutoDecompress_Gz(t *testing.T) {
 }
 
 func TestDownloadFiles_AutoDecompress_GzSizeLimit(t *testing.T) {
-	// Create a gzip that decompresses to just over maxDecompressedSize bytes.
-	// Use a highly compressible repeated pattern so the compressed payload stays small.
 	bigPayload := bytes.Repeat([]byte("A"), int(maxDecompressedSize)+100)
 	compressed := gzCompress(t, bigPayload)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -562,7 +559,6 @@ func TestDownloadFiles_AutoDecompress_Zip(t *testing.T) {
 }
 
 func TestDownloadFiles_AutoDecompress_NonCompressedURL(t *testing.T) {
-	// AutoDecompress=true on a plain .mmdb URL should still work as direct download.
 	payload := []byte("hello plain mmdb")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(len(payload)))
@@ -594,7 +590,6 @@ func TestDownloadFiles_AutoDecompress_NonCompressedURL(t *testing.T) {
 }
 
 func TestDownloadFiles_AutoDecompress_EntryNotFound(t *testing.T) {
-	// tar.gz with different filename than expected.
 	payload := []byte("wrong entry")
 	var tarBuf bytes.Buffer
 	tw := tar.NewWriter(&tarBuf)

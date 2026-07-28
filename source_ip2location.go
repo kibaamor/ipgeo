@@ -38,8 +38,6 @@ func (s *ip2locationSource) Close() error {
 	return nil
 }
 
-// cleanIP2LocationField normalises an IP2Location field value.
-// Placeholder strings such as "-" and "This parameter requires..." are treated as empty.
 func cleanIP2LocationField(s string) string {
 	if s == "-" || s == "" ||
 		strings.HasPrefix(s, "This parameter") ||

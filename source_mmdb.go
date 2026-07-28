@@ -24,7 +24,6 @@ var openMaxMindDB = func(path string) (mmdbReader, error) {
 	return maxminddb.Open(path)
 }
 
-// cityRecord maps the MaxMind DB city and ASN fields used during lookup.
 type cityRecord struct {
 	Country struct {
 		ISOCode string            `maxminddb:"iso_code"`
@@ -71,7 +70,6 @@ func (m *mmdbSource) Close() error {
 	return errors.Join(companionErr, m.db.Close())
 }
 
-// pickName returns the English name when present, otherwise any available name.
 func pickName(names map[string]string) string {
 	if v, ok := names["en"]; ok {
 		return v
@@ -82,8 +80,6 @@ func pickName(names map[string]string) string {
 	return ""
 }
 
-// mergeRecord copies non-empty fields from record into result,
-// leaving fields that are already set unchanged.
 func mergeRecord(result *Result, record *cityRecord) {
 	if result.CountryCode == "" {
 		result.CountryCode = record.Country.ISOCode
@@ -105,7 +101,6 @@ func mergeRecord(result *Result, record *cityRecord) {
 	}
 }
 
-// addrToNetIP converts a netip.Addr to net.IP for use with maxminddb.Reader.
 func addrToNetIP(addr netip.Addr) net.IP {
 	if addr.Is4() {
 		a := addr.As4()

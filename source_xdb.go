@@ -42,7 +42,6 @@ func (d *xdbSource) Close() error {
 	return nil
 }
 
-// cleanXDBField normalises an XDB field value; "0" is the sentinel for missing data.
 func cleanXDBField(s string) string {
 	if s == "0" || s == "" {
 		return ""

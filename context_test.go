@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// recordingSource records whether Lookup was called.
 type recordingSource struct {
 	mockSource
 	called bool
@@ -82,9 +81,6 @@ func TestLookupFrom_RespectsCancelledContext(t *testing.T) {
 	}
 }
 
-// TestCachedSource_DoesNotCacheContextError ensures a context error returned by
-// a source (e.g. a custom network source that respects ctx) is not cached, so a
-// later lookup with a fresh context still queries the source.
 func TestCachedSource_DoesNotCacheContextError(t *testing.T) {
 	src := newMockSource("db")
 	src.addErr(context.Canceled)
@@ -109,14 +105,10 @@ func TestCachedSource_DoesNotCacheContextError(t *testing.T) {
 	}
 }
 
-// TestSingleflight_DoesNotPoisonConcurrentCaller ensures a caller whose context
-// expires mid-flight does not poison the shared lookup for a concurrent caller
-// with a valid context.
 func TestSingleflight_DoesNotPoisonConcurrentCaller(t *testing.T) {
 	src := newBlockingSource("db", Result{IP: testAddr, Source: "db", Country: "US"}, nil)
 	sf := newSingleflightSource(src)
 
-	// Caller A owns the shared lookup; its context expires well before release.
 	ctxA, cancelA := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer cancelA()
 
@@ -124,23 +116,20 @@ func TestSingleflight_DoesNotPoisonConcurrentCaller(t *testing.T) {
 	var bResult Result
 	var wg sync.WaitGroup
 
-	// Release the shared lookup after ctxA has expired.
 	wg.Go(func() {
 		<-src.started
 		time.Sleep(80 * time.Millisecond)
 		close(src.release)
 	})
 
-	// Caller A starts first and triggers the shared lookup.
 	aStarted := make(chan struct{})
 	wg.Go(func() {
 		close(aStarted)
 		_, aErr = sf.Lookup(ctxA, testAddr)
 	})
 	<-aStarted
-	<-src.started // A's lookup is in-flight as the first caller.
+	<-src.started
 
-	// Caller B joins the in-flight shared lookup with a valid context.
 	wg.Go(func() {
 		bResult, bErr = sf.Lookup(context.Background(), testAddr)
 	})

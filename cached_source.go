@@ -10,8 +10,6 @@ import (
 	"github.com/jellydator/ttlcache/v3"
 )
 
-// resultEntry is a cached lookup outcome. ok is false when the address is known
-// to be absent (negative cache); result is the stored value only when ok is true.
 type resultEntry struct {
 	result Result
 	ok     bool

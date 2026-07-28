@@ -8,13 +8,9 @@ import (
 
 var addr1 = netip.MustParseAddr("1.2.3.4")
 
-// helpers
-
 func makeResult(countryCode, country, province, city, organization string, asn uint32) Result {
 	return Result{IP: addr1, Source: "test", CountryCode: countryCode, Country: country, Province: province, City: city, Organization: organization, ASN: asn}
 }
-
-// ---- IsEmpty ----
 
 func TestIsEmpty(t *testing.T) {
 	tests := []struct {
@@ -41,8 +37,6 @@ func TestIsEmpty(t *testing.T) {
 		})
 	}
 }
-
-// ---- String ----
 
 func TestString(t *testing.T) {
 	tests := []struct {
@@ -161,8 +155,6 @@ func TestString(t *testing.T) {
 	}
 }
 
-// ---- Fields ----
-
 func TestFields(t *testing.T) {
 	r := Result{IP: addr1, Source: "src", CountryCode: "CN", Country: "China", Province: "Beijing", City: "Haidian", Organization: "ChinaNet", ASN: 4134}
 	if r.IP != addr1 {
@@ -191,8 +183,6 @@ func TestFields(t *testing.T) {
 	}
 }
 
-// ---- MarshalJSON ----
-
 func TestMarshalJSON(t *testing.T) {
 	r := Result{IP: addr1, Source: "src", CountryCode: "CN", Country: "China", Province: "Beijing", City: "Haidian", Organization: "ChinaNet", ASN: 4134}
 	data, err := json.Marshal(r)
@@ -205,7 +195,6 @@ func TestMarshalJSON(t *testing.T) {
 		t.Fatalf("Unmarshal error: %v", err)
 	}
 
-	// verify ip field is present
 	if got, ok := m["ip"]; !ok {
 		t.Error("key \"ip\" missing in JSON")
 	} else if got != addr1.String() {
@@ -228,7 +217,6 @@ func TestMarshalJSON(t *testing.T) {
 		}
 	}
 
-	// ASN is a number
 	if asn, ok := m["asn"].(float64); !ok || uint(asn) != 4134 {
 		t.Errorf("JSON[asn] = %v, want 4134", m["asn"])
 	}
@@ -286,8 +274,6 @@ func TestUnmarshalJSON_RoundTrip(t *testing.T) {
 		t.Errorf("round-trip = %#v, want %#v", got, original)
 	}
 }
-
-// ---- Zero value ----
 
 func TestZeroValue(t *testing.T) {
 	r := Result{}
