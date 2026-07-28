@@ -51,5 +51,5 @@ func Execute(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return buildRootCmd(ctx, cfg).ExecuteContext(ctx)
+	return buildRootCmd(ctx, cfg).Execute()
 }
