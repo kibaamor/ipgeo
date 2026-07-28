@@ -5,8 +5,7 @@
     "description": "Configuration file for ipgeo — the IP geolocation CLI tool. Place this file at $IPGEO_HOME/config.yaml (default: ~/.config/ipgeo/config.yaml). VS Code and yaml-language-server users: add '# yaml-language-server: $schema=https://raw.githubusercontent.com/kibaamor/ipgeo/main/cmd/ipgeo/doc/config.schema.json' to the top of your config.yaml for full IntelliSense support.",
     "type": "object",
     "required": [
-        "sources",
-        "updater"
+        "sources"
     ],
     "additionalProperties": false,
     "properties": {
@@ -20,15 +19,12 @@
                 "$ref": "#/$defs/SourceEntry"
             },
             "minItems": 1
-        },
-        "updater": {
-            "$ref": "#/$defs/UpdaterConfig"
         }
     },
     "$defs": {
         "HTTPConfig": {
             "title": "HTTP Config",
-            "description": "HTTP settings used when ensuring missing source files, running `ipgeo update`, and running `ipgeo upgrade`.",
+            "description": "HTTP settings used when ensuring missing source files and running `ipgeo update`.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -166,32 +162,6 @@
                         "pattern": "^https?://"
                     },
                     "minItems": 1
-                }
-            }
-        },
-        "UpdaterConfig": {
-            "title": "Updater Config",
-            "description": "Settings for the CLI upgrade command ('ipgeo upgrade').",
-            "type": "object",
-            "required": [
-                "release_urls"
-            ],
-            "additionalProperties": false,
-            "properties": {
-                "release_urls": {
-                    "description": "GitHub Releases API URLs tried in order by `ipgeo upgrade`. The matching OS/architecture asset replaces the running binary. {YEAR} and {MONTH} are not supported.",
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "uri",
-                        "pattern": "^https?://"
-                    },
-                    "minItems": 1,
-                    "examples": [
-                        [
-                            "https://api.github.com/repos/kibaamor/ipgeo/releases/latest"
-                        ]
-                    ]
                 }
             }
         }

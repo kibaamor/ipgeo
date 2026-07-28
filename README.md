@@ -50,9 +50,6 @@ ipgeo info
 
 # Refresh configured source database files.
 ipgeo update
-
-# Upgrade the ipgeo CLI binary from GitHub Releases.
-ipgeo upgrade
 ```
 
 Useful flags: `-j/--json`, `-s/--source`, `-i/--input`, `-o/--output`, `-h/--help`.
@@ -60,6 +57,8 @@ Useful flags: `-j/--json`, `-s/--source`, `-i/--input`, `-o/--output`, `-h/--hel
 ### Configuration
 
 On first run, `ipgeo` writes a default config to `$IPGEO_HOME/config.yaml`; if `IPGEO_HOME` is unset, it uses `~/.config/ipgeo/config.yaml`.
+
+The `updater:` configuration block (used by the removed `ipgeo upgrade` command) is no longer supported. If your existing config contains it, delete the block — `ipgeo` now rejects unknown fields.
 
 The default config includes these sources:
 

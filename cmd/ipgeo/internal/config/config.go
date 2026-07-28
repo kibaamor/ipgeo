@@ -30,14 +30,9 @@ type HTTPConfig struct {
 
 type SourceEntry = sources.Entry
 
-type UpdaterConfig struct {
-	ReleaseURLs []string `yaml:"release_urls"`
-}
-
 type Config struct {
 	HTTP    HTTPConfig    `yaml:"http"`
 	Sources []SourceEntry `yaml:"sources"`
-	Updater UpdaterConfig `yaml:"updater"`
 	homeDir string
 }
 
@@ -202,9 +197,6 @@ func (c *Config) validate() error {
 				return err
 			}
 		}
-	}
-	if len(c.Updater.ReleaseURLs) == 0 {
-		return errors.New("config updater.release_urls must contain at least one URL")
 	}
 	return nil
 }

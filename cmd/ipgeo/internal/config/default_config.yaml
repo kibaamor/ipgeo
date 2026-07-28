@@ -46,8 +46,3 @@ sources:
     filename: dbip-city-lite.mmdb
     urls:
       - https://download.db-ip.com/free/dbip-city-lite-{YEAR}-{MONTH}.mmdb.gz
-
-updater:
-  # GitHub API URLs used by `ipgeo upgrade` to check for the latest release.
-  release_urls:
-    - https://api.github.com/repos/kibaamor/ipgeo/releases/latest

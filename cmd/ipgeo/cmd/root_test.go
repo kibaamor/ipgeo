@@ -11,7 +11,7 @@ import (
 	"github.com/kibaamor/ipgeo/cmd/ipgeo/internal/config"
 )
 
-func TestRootCmd_UpdateAndUpgradeCommands(t *testing.T) {
+func TestRootCmd_UpdateCommand(t *testing.T) {
 	root := buildRootCmd(context.Background(), &config.Config{})
 
 	updateCmd, _, err := root.Find([]string{"update"})
@@ -22,21 +22,20 @@ func TestRootCmd_UpdateAndUpgradeCommands(t *testing.T) {
 		t.Fatalf("Find(update) = %v, want update command", updateCmd)
 	}
 	if updateCmd.Flags().Lookup("self") != nil {
-		t.Fatal("update command still exposes --self; use upgrade for CLI self-update")
+		t.Fatal("update command should not expose --self")
 	}
 	if updateCmd.Short != "Update source database files" {
-		t.Fatalf("update Short = %q", updateCmd.Short)
+		t.Fatalf("update Short = %q, want \"Update source database files\"", updateCmd.Short)
 	}
+}
 
-	upgradeCmd, _, err := root.Find([]string{"upgrade"})
-	if err != nil {
-		t.Fatalf("Find(upgrade) error: %v", err)
-	}
-	if upgradeCmd == nil || upgradeCmd.Use != "upgrade" {
-		t.Fatalf("Find(upgrade) = %v, want upgrade command", upgradeCmd)
-	}
-	if upgradeCmd.Short != "Upgrade the ipgeo CLI binary" {
-		t.Fatalf("upgrade Short = %q", upgradeCmd.Short)
+func TestRootCmd_UpgradeCommandNotRegistered(t *testing.T) {
+	root := buildRootCmd(context.Background(), &config.Config{})
+
+	for _, cmd := range root.Commands() {
+		if cmd.Name() == "upgrade" {
+			t.Fatal("upgrade command should not be registered")
+		}
 	}
 }
 
@@ -82,9 +81,6 @@ sources:
     companion_filename: test-v6.xdb
     companion_urls:
       - https://example.com/test-v6.xdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
