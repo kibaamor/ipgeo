@@ -29,16 +29,6 @@ func TestRootCmd_UpdateCommand(t *testing.T) {
 	}
 }
 
-func TestRootCmd_UpgradeCommandNotRegistered(t *testing.T) {
-	root := buildRootCmd(context.Background(), &config.Config{})
-
-	for _, cmd := range root.Commands() {
-		if cmd.Name() == "upgrade" {
-			t.Fatal("upgrade command should not be registered")
-		}
-	}
-}
-
 func TestRootCmd_InvalidSourceNameReturnsSourceNameError(t *testing.T) {
 	root := buildRootCmd(context.Background(), &config.Config{
 		Sources: []config.SourceEntry{

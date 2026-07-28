@@ -57,9 +57,6 @@ Useful flags: `-j/--json`, `-s/--source`, `-i/--input`, `-o/--output`, `-h/--hel
 ### Configuration
 
 On first run, `ipgeo` writes a default config to `$IPGEO_HOME/config.yaml`; if `IPGEO_HOME` is unset, it uses `~/.config/ipgeo/config.yaml`.
-
-The `updater:` configuration block (used by the removed `ipgeo upgrade` command) is no longer supported. If your existing config contains it, delete the block — `ipgeo` now rejects unknown fields.
-
 The default config includes these sources:
 
 - `ip2region` (`xdb`) with separate IPv4 and IPv6 files.
