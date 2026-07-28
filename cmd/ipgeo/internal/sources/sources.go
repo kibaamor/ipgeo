@@ -89,7 +89,9 @@ func Creator(entry Entry, sourcePath func(string) string) (ipgeo.SourceCreator, 
 	default:
 		return ipgeo.SourceCreator{}, fmt.Errorf("configure source %s: unknown source type: %s", entry.Name, entry.Type)
 	}
-	return creator.Decorate(ipgeo.Singleflight()), nil
+	return creator.
+		Decorate(ipgeo.Singleflight()).
+		Decorate(ipgeo.Cache(1024, 0, 0)), nil
 }
 
 func Files(entries []Entry, sourcePath func(string) string) []File {
