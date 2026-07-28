@@ -101,7 +101,7 @@
                     ]
                 },
                 "name": {
-                    "description": "Human-readable name for this source. Must be unique across sources. Used by `--source` and status output. Inline lookup output renders the lookup result, for example `1.1.1.1  [Australia/New South Wales/Sydney,Cloudflare,13335]`.",
+                    "description": "Human-readable name for this source. Must be unique across sources. Used by `--source` and status output. Inline lookup output renders the lookup result, for example `1.1.1.1 [Australia/New South Wales/Sydney,Cloudflare,13335]`.",
                     "type": "string",
                     "minLength": 1,
                     "examples": [
@@ -125,7 +125,7 @@
                     ]
                 },
                 "urls": {
-                    "description": "Source download URLs tried in order when a file is missing or `ipgeo update` runs. The first HTTP 200 response is used. URLs ending in .gz are decompressed. {YEAR} and {MONTH} use the current UTC year/month.",
+                    "description": "Source download URLs tried in order when a file is missing or `ipgeo update` runs. The first HTTP 200 response is used. Responses are auto-decompressed by extension: .gz decompresses the gzip stream; .tar.gz and .tgz extract the matching tar entry; .zip extracts the matching zip entry. {YEAR} and {MONTH} use the current UTC year/month.",
                     "type": "array",
                     "items": {
                         "type": "string",

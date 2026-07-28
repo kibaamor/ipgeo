@@ -74,7 +74,7 @@ func (w *InlineRenderer) WriteResult(result ipgeo.Result) error {
 
 func (w *InlineRenderer) Flush() error { return w.out.Flush() }
 
-// StructuredRenderer writes one formatted result record for each matched IP result.
+// StructuredRenderer writes one JSON object per matched IP.
 type StructuredRenderer struct {
 	out *bufio.Writer
 }

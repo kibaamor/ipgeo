@@ -43,7 +43,7 @@ func (r *readlineReader) Read(p []byte) (int, error) {
 func (r *readlineReader) Close() error { return r.rl.Close() }
 
 // NewReader turns every CLI input source into a single stream.
-// Command arguments take precedence over --input to preserve the existing CLI behavior.
+// Command arguments take precedence over --input.
 func NewReader(args []string, path string) (io.ReadCloser, error) {
 	if len(args) > 0 {
 		return io.NopCloser(strings.NewReader(strings.Join(args, "\n") + "\n")), nil
