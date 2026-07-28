@@ -19,9 +19,6 @@ sources:
     filename: test.mmdb
     urls:
       - https://example.com/test.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `
 
 func TestLoad_CreatesDefaultConfig(t *testing.T) {
@@ -87,9 +84,6 @@ sources:
     filename: test.mmdb
     urls:
       - https://example.com/test.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `), t.TempDir())
 	if err != nil {
 		t.Fatalf("loadFromData() error: %v", err)
@@ -122,9 +116,6 @@ sources:
     filename: test.mmdb
     urls:
       - https://example.com/test.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `), t.TempDir())
 	if err != nil {
 		t.Fatalf("loadFromData() error: %v", err)
@@ -150,9 +141,6 @@ sources:
     filename: test.mmdb
     urls:
       - https://example.com/test.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `), t.TempDir())
 	if err != nil {
 		t.Fatalf("loadFromData() error: %v", err)
@@ -172,9 +160,6 @@ sources:
     filename: test.mmdb
     urls:
       - https://example.com/test.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `), t.TempDir())
 	if err != nil {
 		t.Fatalf("loadFromData() error: %v", err)
@@ -211,9 +196,6 @@ sources:
     companion_filename: " asn.mmdb "
     companion_urls:
       - https://example.com/asn.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `), t.TempDir())
 	if err != nil {
 		t.Fatalf("loadFromData() error: %v", err)
@@ -345,20 +327,8 @@ sources:
 		},
 		{
 			name:    "missing sources",
-			config:  "updater: {}\n",
+			config:  "http: {timeout: 30m}\n",
 			wantErr: "sources",
-		},
-		{
-			name: "missing updater release urls",
-			config: `
-sources:
-  - type: mmdb
-    name: test
-    filename: test.mmdb
-    urls:
-      - https://example.com/test.mmdb
-`,
-			wantErr: "updater.release_urls",
 		},
 		{
 			name: "missing urls",
@@ -459,9 +429,6 @@ sources:
     filename: /test.mmdb
     urls:
       - https://example.com/test.xdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `,
 			wantErr: "",
 		},
@@ -486,9 +453,6 @@ sources:
     filename: nested/../test.mmdb
     urls:
       - https://example.com/test.xdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `,
 			wantErr: "",
 		},
@@ -696,9 +660,6 @@ sources:
     filename: '`+tt.filename+`'
     urls:
       - https://example.com/test.mmdb
-updater:
-  release_urls:
-    - https://example.com/releases/latest
 `))
 			if err := schema.Validate(doc); err != nil {
 				t.Fatalf("schema rejected filename left to runtime validation: %v", err)
@@ -707,7 +668,24 @@ updater:
 	}
 }
 
-func TestSchemaRejectsEmptyUpdaterConfig(t *testing.T) {
+func TestLoadFromData_RejectsUpdaterAsUnknownField(t *testing.T) {
+	_, err := loadFromData([]byte(`
+sources:
+  - type: mmdb
+    name: test
+    filename: test.mmdb
+    urls:
+      - https://example.com/test.mmdb
+updater:
+  release_urls:
+    - https://example.com/releases/latest
+`), t.TempDir())
+	if err == nil {
+		t.Fatal("loadFromData() error = nil, want unknown-field error for updater")
+	}
+}
+
+func TestSchemaRejectsUpdaterAsUnknownField(t *testing.T) {
 	schema := loadConfigSchema(t)
 	doc := yamlToJSONCompatible(t, []byte(`
 sources:
@@ -716,10 +694,12 @@ sources:
     filename: test.mmdb
     urls:
       - https://example.com/test.mmdb
-updater: {}
+updater:
+  release_urls:
+    - https://example.com/releases/latest
 `))
 	if err := schema.Validate(doc); err == nil {
-		t.Fatal("schema accepted empty updater config")
+		t.Fatal("schema accepted unknown top-level field updater")
 	}
 }
 
