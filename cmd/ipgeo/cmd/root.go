@@ -42,9 +42,6 @@ func buildRootCmd(ctx context.Context, cfg *config.Config) *cobra.Command {
 
 	root.AddCommand(newInfoCmd(cfg))
 	root.AddCommand(newUpdateCmd(ctx, cfg))
-	if cmd := newUpgradeCmd(ctx, cfg); cmd != nil {
-		root.AddCommand(cmd)
-	}
 
 	return root
 }
