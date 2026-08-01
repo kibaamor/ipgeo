@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/netip"
-	"strconv"
-	"strings"
 
 	"github.com/ipipdotnet/ipdb-go"
 )
@@ -65,8 +63,6 @@ func (i *ipdbSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) 
 	}
 
 	result := Result{
-		IP:           addr,
-		Source:       i.name,
 		CountryCode:  info.CountryCode,
 		Country:      info.CountryName,
 		Province:     info.RegionName,
@@ -79,14 +75,8 @@ func (i *ipdbSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) 
 			result.ASN = uint32(asn) //nolint:gosec // ASN is 32-bit per RFC 6793
 		}
 	} else if info.ASN != "" {
-		asnStr := strings.TrimPrefix(info.ASN, "AS")
-		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
-			result.ASN = uint32(n)
-		}
+		result.ASN = parseASN(info.ASN)
 	}
 
-	if result.IsEmpty() {
-		return Result{}, ErrNotFound
-	}
-	return result, nil
+	return finalize(i.name, addr, result)
 }

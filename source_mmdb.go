@@ -119,8 +119,6 @@ func (m *mmdbSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) 
 	}
 
 	var result Result
-	result.IP = addr
-	result.Source = m.name
 	mergeRecord(&result, &record)
 
 	if m.companion != nil {
@@ -131,8 +129,5 @@ func (m *mmdbSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) 
 		mergeRecord(&result, &companion)
 	}
 
-	if result.IsEmpty() {
-		return Result{}, ErrNotFound
-	}
-	return result, nil
+	return finalize(m.name, addr, result)
 }

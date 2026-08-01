@@ -3,7 +3,6 @@ package ipgeo
 import (
 	"context"
 	"net/netip"
-	"strconv"
 	"strings"
 
 	ip2loc "github.com/ip2location/ip2location-go/v9"
@@ -54,8 +53,6 @@ func (s *ip2locationSource) Lookup(_ context.Context, addr netip.Addr) (Result, 
 	}
 
 	result := Result{
-		IP:           addr,
-		Source:       s.name,
 		CountryCode:  cleanIP2LocationField(rec.Country_short),
 		Country:      cleanIP2LocationField(rec.Country_long),
 		Province:     cleanIP2LocationField(rec.Region),
@@ -63,14 +60,8 @@ func (s *ip2locationSource) Lookup(_ context.Context, addr netip.Addr) (Result, 
 		Organization: cleanIP2LocationField(rec.Isp),
 	}
 	if asnStr := cleanIP2LocationField(rec.Asn); asnStr != "" {
-		asnStr = strings.TrimPrefix(asnStr, "AS")
-		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
-			result.ASN = uint32(n)
-		}
+		result.ASN = parseASN(asnStr)
 	}
 
-	if result.IsEmpty() {
-		return Result{}, ErrNotFound
-	}
-	return result, nil
+	return finalize(s.name, addr, result)
 }

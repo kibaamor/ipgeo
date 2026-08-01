@@ -64,16 +64,11 @@ func (d *xdbSource) Lookup(_ context.Context, addr netip.Addr) (Result, error) {
 	}
 
 	result := Result{
-		IP:           addr,
-		Source:       d.name,
 		Country:      cleanXDBField(parts[0]),
 		Province:     cleanXDBField(parts[1]),
 		City:         cleanXDBField(parts[2]),
 		Organization: cleanXDBField(parts[3]),
 		CountryCode:  cleanXDBField(parts[4]),
 	}
-	if result.IsEmpty() {
-		return Result{}, ErrNotFound
-	}
-	return result, nil
+	return finalize(d.name, addr, result)
 }
